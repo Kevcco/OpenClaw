@@ -1,0 +1,299 @@
+/* tpl-case.css — 模板·案例双栏页：提示词框（浅底深字）+ 结果框 + 步骤条 */
+
+  /* 案例页 */
+  /* 案例页步骤条：三列卡片 + 编号顶部对齐 */
+  .tpl-case-steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(10px, 1.2vw, 14px);
+    flex-shrink: 0;
+    align-items: stretch;
+  }
+
+  /* 四步案例页（如 4.2 / 4.3）：步骤卡单行四列 */
+  @media (min-width: 1025px) {
+    .slide-case-steps-4 .tpl-case-steps,
+    .tpl-case-steps:has(> .tpl-case-step:nth-child(4):last-child) {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: clamp(8px, 1vw, 12px);
+    }
+    .slide-case-steps-4 .tpl-case-step,
+    .tpl-case-steps:has(> .tpl-case-step:nth-child(4):last-child) .tpl-case-step {
+      padding: clamp(10px, 1.25vh, 14px) clamp(8px, 0.9vw, 10px);
+      font-size: clamp(0.86em, 1.25vh, 0.98em);
+      line-height: 1.4;
+    }
+    .slide-case-steps-4 .tpl-case-step-text,
+    .tpl-case-steps:has(> .tpl-case-step:nth-child(4):last-child) .tpl-case-step-text {
+      text-align: left;
+      width: 100%;
+    }
+  }
+
+  .tpl-case .tpl-dash-box h3.tpl-case-box-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    text-align: left;
+  }
+  .tpl-case-tool-badge {
+    flex-shrink: 0;
+    font-size: clamp(0.65em, 0.92vh, 0.76em);
+    white-space: nowrap;
+  }
+
+  .tpl-case-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background: #fff;
+    border: 1.5px solid rgba(126, 24, 28, 0.2);
+    color: var(--pku-red-dark);
+    padding: clamp(12px, 1.5vh, 16px) clamp(10px, 1.2vw, 12px);
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(126, 24, 28, 0.06);
+    font-size: clamp(0.94em, 1.45vh, 1.08em);
+    font-weight: 700;
+    line-height: 1.45;
+    min-height: 0;
+  }
+
+  .tpl-case-step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: clamp(34px, 4.5vh, 42px);
+    height: clamp(34px, 4.5vh, 42px);
+    border-radius: 50%;
+    background: var(--pku-red);
+    color: #fff;
+    font-weight: 800;
+    font-size: clamp(0.95em, 1.3vh, 1.08em);
+    line-height: 1;
+    margin-bottom: clamp(8px, 1vh, 10px);
+    flex-shrink: 0;
+  }
+
+  .tpl-case-step-text {
+    display: block;
+    color: #444;
+    font-weight: 600;
+  }
+  .tpl-case-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(12px, 1.5vw, 16px); flex: 1; min-height: 0; }
+  .tpl-case-grid .code-box { margin: 0; display: flex; flex-direction: column; border: 2px dashed rgba(126,24,28,0.3); border-radius: 8px; background: #fafafa; }
+  .tpl-case-grid .code-box pre { flex: 0 0 auto; min-height: 0; font-size: clamp(0.92em, 1.45vh, 1.06em); }
+  .tpl-case-grid .demo-outcome-panel { border: 2px dashed rgba(126,24,28,0.3); border-radius: 8px; }
+  /* 案例页内层用自然高度（不用 flex 弹性撑满），整页高度=真实内容高度，配合 fitActiveSlide 的自适应缩放才准确 */
+  .tpl-case-grid .demo-outcome-list { flex: 0 0 auto; overflow: visible; min-height: 0; }
+  /* 案例页提示词框为浅底，改用深色文字配色以保证可读 */
+  .tpl-case-grid .code-box-head h4 { color: var(--pku-red); }
+  .tpl-case-grid .code-box pre { color: #2b2b2b; }
+  .tpl-case-grid .copy-prompt-btn { color: var(--pku-red); border-color: rgba(126,24,28,0.4); background: rgba(126,24,28,0.06); }
+  .tpl-case-grid .copy-prompt-btn:hover { background: rgba(126,24,28,0.12); border-color: rgba(126,24,28,0.6); }
+  .tpl-case-grid .copy-prompt-btn.copied { color: #1a7f37; border-color: rgba(26,127,55,0.4); background: rgba(26,127,55,0.1); }
+  .tpl-four .code-box, .tpl-case .code-box { flex-shrink: 0; margin-top: 4px; }
+  .tpl-four .code-box pre { max-height: min(160px, 22vh); overflow-y: auto; font-size: clamp(0.92em, 1.45vh, 1.06em); }
+  .tpl-case .tpl-page-head + .tpl-case-steps { margin-bottom: 4px; }
+  .tpl-case-grid .demo-outcome-panel h4 + .demo-outcome-list { margin-bottom: 6px; }
+  .tpl-case-grid .demo-outcome-panel h4:not(:first-child) { margin-top: 8px; font-size: clamp(0.92em, 1.3vh, 1.02em); }
+
+  /* 案例页：左提示词 + 右效果展示 */
+  .tpl-case .tpl-dash-cols {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: clamp(6px, 0.8vh, 10px);
+  }
+  .tpl-case .tpl-dash-box .code-box-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 6px;
+  }
+  .tpl-case .tpl-dash-box .code-box-head h4 {
+    color: var(--pku-red);
+    font-size: clamp(0.82em, 1.15vh, 0.92em);
+    margin: 0;
+    font-weight: 800;
+  }
+  .tpl-case .tpl-dash-box .copy-prompt-btn {
+    color: var(--pku-red);
+    border: 1px solid rgba(126,24,28,0.35);
+    background: rgba(126,24,28,0.06);
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: clamp(0.72em, 1vh, 0.82em);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .tpl-case-outcome {
+    margin: 10px 0 0;
+    padding-left: 1.1em;
+    font-size: clamp(0.88em, 1.25vh, 0.98em);
+    line-height: 1.55;
+    color: #444;
+  }
+  .tpl-case-outcome li { margin-bottom: 0.3em; }
+  .tpl-case-tip {
+    margin: 8px 0 0;
+    font-size: clamp(0.8em, 1.1vh, 0.88em);
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+  .tpl-case-downloads {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(126, 24, 28, 0.18);
+  }
+  .tpl-case-downloads-label {
+    margin: 0 0 8px;
+    font-size: clamp(0.78em, 1.05vh, 0.86em);
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .tpl-case-download-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tpl-case-download-links .sample-download-btn,
+  .tpl-case-download-links .sample-preview-btn {
+    padding: 6px 12px;
+    font-size: clamp(0.72em, 0.95vh, 0.8em);
+    border-radius: 6px;
+  }
+  .tpl-case-xueqing-lead {
+    margin: 0 0 10px;
+    font-size: clamp(0.88em, 1.2vh, 0.96em);
+    line-height: 1.58;
+    color: #444;
+  }
+  .tpl-case-xueqing-table { margin-bottom: 10px; }
+  .tpl-case-xueqing-table code {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 0.92em;
+    color: var(--pku-red-dark);
+  }
+  .tpl-case-xueqing-foot {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .tpl-case-xueqing-foot .tpl-case-downloads {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+
+  /* 学情分析 · 中页：三类成果直观预览 */
+  .tpl-xueqing-results {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr) minmax(0, 0.95fr);
+    gap: clamp(8px, 1vw, 12px);
+    margin-top: clamp(6px, 0.8vh, 10px);
+  }
+  .tpl-xueqing-result-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: #fff;
+    border: 1.5px solid rgba(126, 24, 28, 0.16);
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(126, 24, 28, 0.06);
+    overflow: hidden;
+  }
+  .tpl-xueqing-result-card h4 {
+    flex-shrink: 0;
+    margin: 0;
+    padding: 8px 10px;
+    font-size: clamp(0.78em, 1.05vh, 0.88em);
+    font-weight: 800;
+    color: #fff;
+    background: linear-gradient(135deg, var(--pku-red-dark), var(--pku-red));
+  }
+  .tpl-xueqing-result-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 8px 10px 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .tpl-xueqing-excel-mock {
+    flex: 1;
+    overflow: auto;
+    font-size: clamp(0.62em, 0.85vh, 0.72em);
+  }
+  .tpl-xueqing-excel-mock table {
+    width: 100%;
+    border-collapse: collapse;
+    line-height: 1.45;
+  }
+  .tpl-xueqing-excel-mock th {
+    background: #f3f3f3;
+    color: #333;
+    font-weight: 700;
+    padding: 4px 5px;
+    border: 1px solid #ddd;
+    text-align: left;
+  }
+  .tpl-xueqing-excel-mock td {
+    padding: 3px 5px;
+    border: 1px solid #e8e8e8;
+    white-space: nowrap;
+  }
+  .tpl-xueqing-excel-mock .pct-r { color: #c62828; font-weight: 700; }
+  .tpl-xueqing-excel-mock .pct-y { color: #e65100; font-weight: 700; }
+  .tpl-xueqing-excel-mock .pct-g { color: #2e7d32; font-weight: 700; }
+  .tpl-xueqing-report-mock {
+    flex: 1;
+    font-size: clamp(0.72em, 0.98vh, 0.82em);
+    line-height: 1.55;
+    color: #444;
+  }
+  .tpl-xueqing-report-mock h5 {
+    font-size: 1em;
+    color: var(--pku-red-dark);
+    margin: 0 0 6px;
+  }
+  .tpl-xueqing-report-mock ul {
+    margin: 0 0 8px;
+    padding-left: 1.1em;
+  }
+  .tpl-xueqing-report-mock li { margin-bottom: 0.25em; }
+  .tpl-xueqing-report-highlight {
+    background: #fff8f8;
+    border: 1px solid rgba(126, 24, 28, 0.15);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 0.95em;
+  }
+  .tpl-xueqing-profile-frame {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .tpl-xueqing-profile-frame .html-browser-frame {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .tpl-xueqing-profile-frame iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+    background: #fafafa;
+  }
+  .tpl-xueqing-results-note {
+    margin-top: 6px;
+    font-size: clamp(0.76em, 1vh, 0.84em);
+    color: var(--text-secondary);
+    text-align: center;
+    flex-shrink: 0;
+  }

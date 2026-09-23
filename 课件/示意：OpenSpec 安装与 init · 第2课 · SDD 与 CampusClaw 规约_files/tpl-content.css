@@ -1,0 +1,374 @@
+/* tpl-content.css — 模板·虚线双栏正文页（研究背景式） */
+
+  /* 虚线双栏（研究背景式） */
+  .tpl-dash-cols { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(14px, 2vw, 20px); flex: 1; min-height: 0; align-items: stretch; }
+  .tpl-dash-box { border: 2px dashed rgba(126,24,28,0.35); border-radius: 8px; padding: clamp(14px, 1.8vh, 20px); display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .tpl-dash-box h3 { text-align: center; font-size: clamp(1.1em, 1.8vh, 1.28em); font-weight: 800; color: var(--pku-red); margin: 0 0 8px; flex-shrink: 0; }
+  .tpl-concept-one { flex-shrink: 0; text-align: center; font-size: clamp(0.98em, 1.5vh, 1.12em); line-height: 1.55; font-weight: 700; color: #333; margin: 0 0 12px; padding: 8px 12px; background: rgba(126,24,28,0.06); border-radius: 6px; }
+  .tpl-concept-one strong { color: var(--pku-red-dark); font-weight: 800; }
+  .tpl-dash-box .body { flex: 1; font-size: clamp(1em, 1.55vh, 1.14em); line-height: 1.7; color: #333; overflow: visible; }
+  .tpl-dash-box .body p { margin: 0 0 8px; }
+  .tpl-dash-box .body ul { margin: 0; padding-left: 1.1em; }
+  .tpl-dash-box .body li { margin-bottom: 0.35em; }
+
+  /* 2.2 HTML / 2.3 Markdown：右栏源码 + 效果预览 */
+  .tpl-dash-cols--html { align-items: stretch; }
+  .tpl-html-demo {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(8px, 1vh, 12px);
+    min-height: 0;
+    border: 2px dashed rgba(126,24,28,0.35);
+    border-radius: 8px;
+    padding: clamp(10px, 1.2vh, 14px);
+    overflow: hidden;
+  }
+  .tpl-html-demo-part { display: flex; flex-direction: column; min-height: 0; }
+  .tpl-html-demo-part--code { flex: 0 0 auto; }
+  .tpl-html-demo-part--preview { flex: 1 1 0; min-height: clamp(120px, 22vh, 210px); }
+  .tpl-html-demo-label {
+    font-size: clamp(0.82em, 1.15vh, 0.92em);
+    font-weight: 800;
+    color: var(--pku-red);
+    margin: 0 0 6px;
+    flex-shrink: 0;
+  }
+  .tpl-html-demo .code-box {
+    margin: 0;
+    padding: clamp(10px, 1.2vh, 14px);
+    background: #0f172a;
+    border-radius: 6px;
+  }
+  .tpl-html-demo .code-box pre {
+    margin: 0;
+    max-height: min(132px, 17vh);
+    overflow: hidden;
+    font-size: clamp(0.72em, 1.05vh, 0.82em);
+    line-height: 1.5;
+    color: #e2e8f0;
+  }
+  .html-browser-frame {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border: 1px solid rgba(126,24,28,0.18);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .html-browser-chrome {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 10px;
+    background: #ececec;
+    border-bottom: 1px solid #d8d8d8;
+    flex-shrink: 0;
+  }
+  .html-browser-chrome .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #c4c4c4;
+  }
+  .html-browser-url {
+    flex: 1;
+    margin-left: 6px;
+    padding: 3px 10px;
+    font-size: clamp(0.68em, 0.95vh, 0.78em);
+    color: #666;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .html-browser-frame iframe {
+    flex: 1 1 0;
+    width: 100%;
+    min-height: 0;
+    border: 0;
+    display: block;
+    background: #fff;
+  }
+  .md-preview-frame {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: auto;
+    padding: clamp(10px, 1.2vh, 14px) clamp(12px, 1.4vw, 16px);
+    background: #fff;
+    border: 1px solid rgba(126,24,28,0.18);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    font-size: clamp(0.76em, 1.08vh, 0.86em);
+    line-height: 1.55;
+    color: #333;
+  }
+  .md-preview-frame h1 {
+    font-size: 1.28em;
+    font-weight: 800;
+    color: var(--pku-red-dark);
+    margin: 0 0 6px;
+    line-height: 1.3;
+  }
+  .md-preview-frame h2 {
+    font-size: 1.08em;
+    font-weight: 800;
+    color: var(--pku-red);
+    margin: 10px 0 5px;
+    line-height: 1.3;
+  }
+  .md-preview-frame ul,
+  .md-preview-frame ol { margin: 0 0 8px; padding-left: 1.35em; }
+  .md-preview-frame li { margin-bottom: 0.2em; }
+  .md-preview-frame p { margin: 0 0 8px; }
+  .md-preview-frame table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92em;
+    margin-top: 4px;
+  }
+  .md-preview-frame th,
+  .md-preview-frame td {
+    border: 1px solid rgba(126,24,28,0.22);
+    padding: 4px 8px;
+    text-align: left;
+  }
+  .md-preview-frame th {
+    background: rgba(126,24,28,0.08);
+    color: var(--pku-red-dark);
+    font-weight: 700;
+  }
+
+  /* 2.4–2.7 工具页：右栏界面效果展示（图片待补充） */
+  .tpl-tool-showcase {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(6px, 0.8vh, 10px);
+    min-height: 0;
+    border: 2px dashed rgba(126,24,28,0.35);
+    border-radius: 8px;
+    padding: clamp(10px, 1.2vh, 14px);
+    overflow: hidden;
+  }
+  .tpl-tool-showcase-frame {
+    flex: 1 1 0;
+    min-height: clamp(200px, 32vh, 340px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(126,24,28,0.18);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fafafa;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .tpl-tool-showcase-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    background: #fff;
+  }
+  .tpl-tool-showcase-placeholder {
+    width: 100%;
+    height: 100%;
+    min-height: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(6px, 0.8vh, 10px);
+    padding: clamp(12px, 1.5vh, 20px);
+    text-align: center;
+    color: #888;
+    border: 2px dashed rgba(126,24,28,0.2);
+    border-radius: 6px;
+    background: rgba(126,24,28,0.03);
+  }
+  .tpl-tool-showcase-placeholder strong {
+    font-size: clamp(0.88em, 1.2vh, 0.98em);
+    color: var(--pku-red);
+    font-weight: 800;
+  }
+  .tpl-tool-showcase-path {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: clamp(0.72em, 1vh, 0.82em);
+    color: #666;
+    word-break: break-all;
+  }
+  .tpl-tool-showcase-note {
+    margin: 0;
+    font-size: clamp(0.76em, 1.05vh, 0.86em);
+    color: #999;
+  }
+  .tpl-tool-showcase--live .tpl-tool-showcase-frame {
+    align-items: stretch;
+    justify-content: stretch;
+    padding: 0;
+    background: #fff;
+  }
+  .tpl-tool-showcase--live .html-browser-frame {
+    width: 100%;
+    height: 100%;
+    min-height: inherit;
+  }
+  .tpl-html-demo-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .tpl-html-demo-label-row .tpl-html-demo-label { margin: 0; flex: 1; min-width: 0; }
+  .html-preview-expand-btn {
+    flex-shrink: 0;
+    color: var(--pku-red);
+    border: 1px solid rgba(126,24,28,0.35);
+    background: rgba(126,24,28,0.06);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: clamp(0.72em, 1vh, 0.82em);
+    font-weight: 700;
+    cursor: pointer;
+    line-height: 1.2;
+  }
+  .html-preview-expand-btn:hover {
+    background: rgba(126,24,28,0.12);
+    border-color: rgba(126,24,28,0.55);
+  }
+  /* 2.4 扣子：右栏上下两个案例预览 */
+  .tpl-tool-showcase--dual {
+    gap: clamp(6px, 0.8vh, 10px);
+  }
+  .tpl-coze-demo-part {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .tpl-coze-demo-part .html-browser-frame {
+    flex: 1 1 0;
+    min-height: clamp(108px, 15vh, 168px);
+  }
+  .tpl-coze-demo-part .html-browser-frame iframe {
+    min-height: clamp(96px, 13vh, 150px);
+  }
+  .tpl-tool-showcase--dual .tpl-coze-demo-part .tpl-tool-showcase-frame {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    align-items: stretch;
+  }
+  .tpl-tool-showcase--dual .tpl-coze-demo-part .tpl-tool-showcase-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center top;
+  }
+  /* 学情分析（下）：上 1 图 + 下 2 图 */
+  .tpl-tool-showcase--xueqing {
+    gap: clamp(6px, 0.8vh, 10px);
+  }
+  .tpl-tool-showcase--xueqing .tpl-xueqing-shot--full {
+    flex: 0 0 auto;
+  }
+  .tpl-tool-showcase--xueqing .tpl-xueqing-shot--full .tpl-tool-showcase-frame {
+    max-height: clamp(120px, 18vh, 180px);
+  }
+  .tpl-xueqing-shot-row {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(6px, 0.8vh, 10px);
+  }
+  .tpl-xueqing-shot-row .tpl-coze-demo-part {
+    min-height: 0;
+  }
+  .tpl-xueqing-shot-row .tpl-tool-showcase-frame {
+    flex: 1 1 auto;
+    min-height: clamp(100px, 14vh, 160px);
+  }
+  /* 学情分析（⑤）：WorkBuddy 生成效果全幅展示 */
+  .tpl-case-xueqing-result {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    margin-top: clamp(6px, 0.8vh, 10px);
+  }
+  .tpl-case-xueqing-result .tpl-tool-showcase-frame {
+    flex: 1 1 auto;
+    min-height: clamp(280px, 42vh, 480px);
+    padding: 4px;
+  }
+  .tpl-case-xueqing-result .tpl-tool-showcase-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center center;
+  }
+  .tpl-dash-box .body .code-box--compact {
+    margin-top: 10px;
+    padding: clamp(8px, 1vh, 12px);
+    background: #0f172a;
+    border-radius: 6px;
+  }
+  .tpl-dash-box .body .code-box--compact pre {
+    margin: 0;
+    font-size: clamp(0.68em, 0.98vh, 0.78em);
+    line-height: 1.5;
+    color: #e2e8f0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .tpl-dash-screenshot {
+    margin-top: clamp(10px, 1.2vh, 14px);
+    flex-shrink: 0;
+  }
+  .tpl-dash-box:has(.tpl-dash-screenshot) .body {
+    justify-content: flex-start;
+  }
+  .tpl-dash-screenshot-cap {
+    margin: 0 0 6px;
+    font-size: clamp(0.76em, 1.05vh, 0.86em);
+    color: var(--text-secondary);
+    text-align: center;
+  }
+  .tpl-dash-screenshot-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: 1px solid rgba(126, 24, 28, 0.15);
+    border-radius: 6px;
+    background: #fff;
+  }
+  .tpl-dash-box .body a {
+    color: var(--pku-red-dark);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* tpl-bg / tpl-table：正文区与底部条同宽、同组缩放 */
+  .deck-ppt .tpl-bg .slide-fit-body,
+  .deck-ppt .tpl-table .slide-fit-body { width: 100%; align-self: stretch; }
+  .deck-ppt .tpl-bg .slide-fit-body > .tpl-bullets { width: 100%; flex-shrink: 0; }
+  .deck-ppt .tpl-bg .slide-fit-body > .tpl-dash-cols {
+    flex: 1 1 auto !important; min-height: 0; width: 100%;
+  }
+  .deck-ppt .tpl-bg .slide-fit-body > .tpl-innovation-summary,
+  .deck-ppt .tpl-bg .slide-fit-body > .tpl-summary-bar,
+  .deck-ppt .tpl-table .slide-fit-body > .tpl-summary-bar {
+    width: 100%; flex-shrink: 0; text-align: left;
+  }
+  .deck-ppt .tpl-bg .slide-fit-body > .tpl-innovation-summary { margin-top: auto !important; }
+  .deck-ppt .tpl-bg .slide-fit-body > .tpl-summary-bar { margin-top: auto !important; }
+  .deck-ppt .tpl-bg .slide-fit-body > .tpl-innovation-summary + .tpl-summary-bar {
+    margin-top: clamp(8px, 1vh, 12px) !important;
+  }

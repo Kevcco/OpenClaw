@@ -1,0 +1,758 @@
+/* slides.css — 各类幻灯片专属布局：演示/案例页、@提问命中、ima 建库、企鹅教师助手、
+   工具回顾、WorkBuddy、密集内容页、四段式、实操案例、公众号精选案例、二次函数案例、WB 组合页。
+   按原 base.css 顺序排列以保持层叠一致。 */
+
+  /* 讲师演示截图页 */
+  .slide-demo .slide-inner,
+  .slide-case .slide-inner {
+    justify-content: flex-start;
+    gap: clamp(8px, 1.2vh, 16px);
+  }
+  .slide-demo .slide-inner > .content-header,
+  .slide-demo .slide-inner > .demo-steps-bar,
+  .slide-demo .slide-inner > .sample-file-box,
+  .slide-demo .slide-inner > .demo-caption,
+  .slide-case .slide-inner > .content-header,
+  .slide-case .slide-inner > .demo-steps-bar,
+  .slide-case .slide-inner > .demo-caption,
+  .slide-case .slide-inner > .case-article-qr-banner--footer {
+    flex: 0 0 auto;
+  }
+  .slide-demo .slide-inner > .demo-grid-2,
+  .slide-case .slide-inner > .demo-grid-2 {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+  .slide-demo .content-header { margin-bottom: clamp(8px, 1vh, 12px); }
+  .slide-demo h2 { font-size: 1.55em; }
+  .demo-steps-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: clamp(6px, 0.8vh, 10px); font-size: 0.88em; color: var(--text-secondary);
+  }
+  .demo-step-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(140,21,21,0.08); border: 1px solid rgba(140,21,21,0.15);
+    color: var(--pku-red-dark); padding: 5px 12px; border-radius: 20px; font-weight: 600;
+  }
+  .demo-step-pill.active { background: var(--pku-red); color: #fff; border-color: var(--pku-red); }
+  .demo-outcome-panel {
+    height: 100%; min-height: 0; flex: 1 1 0;
+    display: flex; flex-direction: column;
+    background: linear-gradient(160deg, #fff 0%, rgba(140,21,21,0.04) 100%);
+    border: 1px solid rgba(140,21,21,0.12);
+    border-radius: 14px;
+    padding: clamp(14px, 2vh, 20px) clamp(14px, 2vw, 20px);
+  }
+  .demo-outcome-panel h4 {
+    color: var(--pku-red-dark);
+    font-size: clamp(1em, 1.5vh, 1.14em);
+    margin-bottom: clamp(8px, 1vh, 12px);
+    font-weight: 700;
+  }
+  .demo-outcome-list {
+    margin: 0; padding-left: 0; list-style: none;
+    font-size: clamp(0.94em, 1.4vh, 1.06em);
+    line-height: 1.65; color: var(--text-secondary);
+    flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  }
+  .demo-outcome-list li {
+    position: relative; padding-left: 1.35em; margin-bottom: 0.55em;
+  }
+  .demo-outcome-list li::before {
+    content: "✓"; position: absolute; left: 0; top: 0.05em;
+    color: var(--pku-red); font-weight: 800; font-size: 0.9em;
+  }
+  .demo-outcome-list li strong { color: var(--text-primary); }
+  .demo-outcome-tip {
+    margin-top: auto; padding-top: clamp(8px, 1vh, 12px);
+    font-size: clamp(0.88em, 1.3vh, 0.98em);
+    line-height: 1.6; color: var(--text-muted);
+    border-top: 1px dashed rgba(140,21,21,0.15);
+  }
+  .demo-outcome-panel--workbuddy {
+    background: linear-gradient(160deg, #fff 0%, rgba(108,77,255,0.06) 100%);
+    border-color: rgba(108,77,255,0.18);
+  }
+  .demo-outcome-panel--workbuddy h4 { color: #583ED3; }
+  .demo-outcome-panel--workbuddy .demo-outcome-list li::before { color: #6C4DFF; }
+  .demo-outcome-panel--ima {
+    background: linear-gradient(160deg, #fff 0%, rgba(0,110,255,0.05) 100%);
+    border-color: rgba(0,110,255,0.15);
+  }
+  .demo-outcome-panel--ima h4 { color: #006eff; }
+  .demo-outcome-panel--ima .demo-outcome-list li::before { color: #006eff; }
+
+  .demo-caption {
+    margin-top: auto; padding-top: clamp(4px, 0.6vh, 8px);
+    font-size: 0.95em; color: var(--text-secondary);
+    text-align: center; line-height: 1.55; flex-shrink: 0;
+  }
+  .slide-demo .code-box { margin-bottom: 0; height: 100%; display: flex; flex-direction: column; }
+  .slide-demo .demo-grid-2 > div > .code-box { height: auto; flex: 1 1 0; min-height: 0; }
+  .slide-demo .demo-grid-2 > div > .demo-hit-box { flex: 0 0 auto; }
+  .slide-demo .code-box pre {
+    flex: 1; min-height: 0; max-height: none; overflow-y: auto;
+  }
+  .slide-demo .demo-grid-2 .code-box { margin-bottom: 0; height: 100%; }
+  .slide-demo .demo-grid-2 .code-box pre { max-height: none; }
+  .slide-demo .content-header h2 { display: inline; }
+  .slide-demo .content-header .demo-badge { margin-left: 10px; vertical-align: middle; }
+  .demo-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(10px, 1.2vw, 16px); align-items: stretch; height: 100%; min-height: 0; }
+  .demo-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: stretch; height: 100%; min-height: 0; }
+  .demo-grid-2 > div,
+  .demo-grid-3 > div {
+    display: flex; flex-direction: column; min-height: 0; height: 100%;
+  }
+  .demo-grid-2 .demo-outcome-panel,
+  .demo-grid-3 .demo-outcome-panel { flex: 1; min-height: 0; }
+  .slide-case .demo-grid-2 .code-box,
+  .slide-case .demo-grid-2 .info-box { margin-bottom: 0; height: 100%; }
+  .slide-case .demo-grid-2 .code-box { display: flex; flex-direction: column; }
+  .slide-case .demo-grid-2 .code-box pre { flex: 1; min-height: 0; max-height: none; overflow-y: auto; }
+  .slide-case .demo-grid-2 > div .demo-hit-box,
+  .slide-case .demo-grid-2 > div .demo-outcome-panel {
+    flex: 1 1 0; min-height: 0;
+  }
+  .slide-case .demo-steps-bar {
+    justify-content: flex-start;
+  }
+  .slide-case .demo-steps-bar::before {
+    content: "本案例流程";
+    display: inline-flex; align-items: center;
+    padding: 5px 12px; border-radius: 20px; margin-right: 2px;
+    background: rgba(140,21,21,0.06); border: 1px dashed rgba(140,21,21,0.22);
+    color: var(--pku-red-dark); font-size: 0.82em; font-weight: 700;
+  }
+  .slide-case .demo-step-pill.active {
+    background: rgba(140,21,21,0.08);
+    color: var(--pku-red-dark);
+    border-color: rgba(140,21,21,0.15);
+  }
+
+  /* ima 建库页 · 纵向铺满 */
+  .slide-ima-kb .slide-inner {
+    justify-content: flex-start;
+    gap: clamp(12px, 1.8vh, 22px);
+  }
+  .slide-ima-kb .slide-inner > .demo-grid-2 {
+    flex: 1 1 0;
+    min-height: clamp(300px, 46vh, 520px);
+  }
+  .slide-ima-kb .slide-inner > .kb-zip-panel { flex: 0 0 auto; }
+  .slide-ima-kb .slide-inner > .demo-caption {
+    flex: 0 0 auto;
+    padding-top: clamp(2px, 0.4vh, 6px);
+  }
+  .slide-ima-kb .ima-kb-grid {
+    align-items: stretch;
+    height: 100%;
+    min-height: 0;
+  }
+  .slide-ima-kb .ima-kb-steps {
+    display: flex; flex-direction: column; gap: clamp(10px, 1.4vh, 16px);
+    height: 100%; min-height: 0;
+  }
+  .slide-ima-kb .ima-kb-steps > .steps {
+    flex: 1 1 auto;
+    justify-content: space-evenly;
+    gap: clamp(10px, 1.6vh, 18px);
+    min-height: 0;
+  }
+  .slide-ima-kb .ima-kb-steps .step {
+    padding: clamp(12px, 1.6vh, 18px) clamp(12px, 1.4vw, 16px);
+  }
+  .slide-ima-kb .ima-kb-steps .step-content h4 {
+    font-size: clamp(1em, 1.5vh, 1.14em);
+    margin-bottom: 4px;
+  }
+  .slide-ima-kb .ima-kb-steps .step-content p {
+    font-size: clamp(0.94em, 1.4vh, 1.06em);
+    line-height: 1.6;
+  }
+  .slide-ima-kb .ima-kb-download {
+    display: block; flex: 0 0 auto; text-align: center;
+    padding: clamp(10px, 1.3vh, 13px); border-radius: 10px;
+    background: linear-gradient(135deg, #006eff, #38bdf8);
+    color: #fff; font-weight: 700; font-size: clamp(0.86em, 1.2vh, 0.94em);
+    text-decoration: none;
+  }
+  .slide-ima-kb .ima-kb-prompt-col {
+    display: flex; flex-direction: column; gap: clamp(10px, 1.4vh, 16px);
+    height: 100%; min-height: 0;
+  }
+  .slide-ima-kb .ima-kb-prompt-col .code-box {
+    flex: 1 1 auto; margin: 0;
+    padding: clamp(16px, 2vh, 24px) clamp(16px, 2vw, 24px);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .slide-ima-kb .ima-kb-prompt-col .code-box-head { margin-bottom: 10px; }
+  .slide-ima-kb .ima-kb-prompt-col .code-box-head h4 {
+    font-size: clamp(0.82em, 1.15vh, 0.9em); line-height: 1.45; color: #fcd34d;
+  }
+  .slide-ima-kb .ima-kb-prompt-col .code-box pre {
+    flex: 1; min-height: 0; margin: 0;
+    font-size: clamp(0.78em, 1.1vh, 0.88em); line-height: 1.58;
+    max-height: none; overflow-y: auto;
+  }
+  .slide-ima-kb .ima-kb-checklist {
+    flex: 0 0 auto; margin: 0;
+    background: linear-gradient(135deg, rgba(0,110,255,0.06), rgba(56,189,248,0.02));
+    border: 1px solid rgba(0,110,255,0.14); border-left: 3px solid #006eff;
+    border-radius: 0 10px 10px 0;
+    padding: clamp(10px, 1.3vh, 14px) clamp(12px, 1.4vw, 16px);
+  }
+  .slide-ima-kb .ima-kb-checklist p {
+    margin: 0; font-size: clamp(0.9em, 1.3vh, 1em);
+    line-height: 1.55; color: var(--text-secondary);
+  }
+  .slide-ima-kb .ima-kb-checklist strong { color: #006eff; }
+  .kb-zip-panel {
+    flex: 0 0 auto;
+    background: linear-gradient(135deg, rgba(0,110,255,0.08), rgba(56,189,248,0.03));
+    border: 1px solid rgba(0,110,255,0.2); border-left: 4px solid #006eff;
+    border-radius: 0 12px 12px 0;
+    padding: clamp(12px, 1.6vh, 18px) clamp(14px, 1.8vw, 20px);
+    box-shadow: var(--shadow);
+  }
+  .kb-zip-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: clamp(12px, 1.6vw, 20px); flex-wrap: wrap;
+    margin-bottom: clamp(10px, 1.3vh, 14px);
+  }
+  .kb-zip-meta { flex: 1; min-width: min(100%, 240px); }
+  .kb-zip-label {
+    display: block; font-size: clamp(0.88em, 1.2vh, 0.96em);
+    font-weight: 700; color: #006eff; margin-bottom: 4px;
+  }
+  .kb-zip-desc {
+    margin: 0; font-size: clamp(0.76em, 1.08vh, 0.84em);
+    line-height: 1.5; color: var(--text-secondary);
+  }
+  .kb-zip-actions {
+    display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+    flex-shrink: 0;
+  }
+  .kb-zip-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: clamp(10px, 1.3vh, 12px) clamp(18px, 2.2vw, 24px);
+    border-radius: 10px; white-space: nowrap;
+    background: linear-gradient(135deg, #006eff, #38bdf8);
+    color: #fff; font-size: clamp(0.84em, 1.15vh, 0.92em);
+    font-weight: 700; text-decoration: none;
+    box-shadow: 0 4px 14px rgba(0,110,255,0.28);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .kb-zip-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0,110,255,0.35);
+  }
+  .kb-zip-link {
+    text-align: center; font-size: clamp(0.72em, 1vh, 0.8em);
+    color: #006eff; text-decoration: none; font-weight: 600;
+  }
+  .kb-zip-link:hover { text-decoration: underline; }
+  .kb-zip-tree {
+    background: rgba(255,255,255,0.72);
+    border: 1px solid rgba(0,110,255,0.12);
+    border-radius: 10px;
+    padding: clamp(10px, 1.3vh, 14px) clamp(12px, 1.4vw, 16px);
+  }
+  .kb-zip-tree-root {
+    margin: 0 0 clamp(8px, 1vh, 10px);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: clamp(0.74em, 1.05vh, 0.82em);
+    font-weight: 700; color: #334155;
+  }
+  .kb-zip-tree-cols {
+    display: grid; grid-template-columns: 1fr 1fr; gap: clamp(10px, 1.4vw, 16px);
+  }
+  .kb-zip-tree-branch { min-width: 0; }
+  .kb-zip-folder {
+    margin: 0 0 6px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: clamp(0.72em, 1.02vh, 0.8em);
+    font-weight: 700; color: #006eff;
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  }
+  .kb-zip-tree-branch--optional .kb-zip-folder { color: var(--text-secondary); }
+  .kb-zip-tag {
+    display: inline-block; padding: 1px 7px; border-radius: 999px;
+    font-size: 0.88em; font-weight: 600; font-family: inherit;
+    background: rgba(0,110,255,0.12); color: #006eff;
+  }
+  .kb-zip-tag--optional {
+    background: rgba(100,116,139,0.12); color: var(--text-secondary);
+  }
+  .kb-zip-file-list {
+    margin: 0; padding: 0 0 0 1.1em; list-style: none;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: clamp(0.68em, 0.98vh, 0.76em);
+    line-height: 1.65; color: var(--text-secondary);
+  }
+  .kb-zip-file-list li {
+    position: relative; padding-left: 0.15em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .kb-zip-file-list li::before {
+    content: "📄"; font-size: 0.85em; margin-right: 4px;
+  }
+  .kb-zip-tree-foot {
+    margin: clamp(8px, 1vh, 10px) 0 0;
+    padding-top: clamp(6px, 0.8vh, 8px);
+    border-top: 1px dashed rgba(0,110,255,0.15);
+    font-size: clamp(0.68em, 0.96vh, 0.74em);
+    color: var(--text-muted); line-height: 1.5;
+  }
+  .slide-ima-kb .demo-caption { margin: 0; font-size: clamp(0.8em, 1.1vh, 0.88em); text-align: center; }
+
+  /* 企鹅教师助手 · 技能广场介绍页 */
+  .slide-aiteach-intro .aiteach-intro-grid {
+    align-items: stretch;
+    min-height: clamp(280px, 42vh, 420px);
+  }
+  .slide-aiteach-intro .aiteach-intro-grid > .card {
+    display: flex; flex-direction: column; height: 100%; margin-bottom: 0;
+  }
+  .slide-aiteach-intro .aiteach-shot-card {
+    padding: clamp(12px, 1.6vh, 18px);
+    border-top: 4px solid var(--pku-red);
+  }
+  .slide-aiteach-intro .aiteach-shot-card h3 {
+    font-size: 0.95em; margin-bottom: 8px; color: var(--pku-red-dark);
+  }
+  .slide-aiteach-intro .aiteach-shot-wrap {
+    flex: 1 1 0; min-height: 0; margin: 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 10px; overflow: hidden;
+    border: 1px solid rgba(140,21,21,0.12);
+    background: #f8f8f8;
+  }
+  .slide-aiteach-intro .aiteach-shot {
+    display: block; width: 100%; height: 100%;
+    max-height: clamp(220px, 36vh, 360px);
+    object-fit: contain; background: #fff;
+  }
+  .slide-aiteach-intro .aiteach-shot-caption {
+    margin: 8px 0 0; font-size: clamp(0.86em, 1.2vh, 0.96em);
+    color: var(--text-secondary); text-align: center; line-height: 1.5;
+  }
+
+  /* @提问演示 · 命中示意 */
+  .demo-hit-box {
+    background: linear-gradient(135deg, rgba(5,150,105,0.08), rgba(16,185,129,0.03));
+    border-left: 4px solid #059669;
+    border-radius: 0 12px 12px 0;
+    padding: clamp(12px, 1.8vh, 18px) clamp(14px, 2vw, 20px);
+    margin: clamp(8px, 1.2vh, 14px) 0;
+  }
+  .demo-hit-box h4 { color: #047857; font-size: clamp(1em, 1.5vh, 1.14em); margin-bottom: 8px; }
+  .demo-hit-box ul { margin: 0; padding-left: 1.2em; font-size: clamp(0.96em, 1.45vh, 1.08em); line-height: 1.7; color: var(--text-secondary); }
+  .demo-hit-box li strong { color: #047857; }
+
+  /* 演示页 · 无大图占位，提问+命中左右排布 */
+  .slide-demo-compact .content-header { margin-bottom: clamp(8px, 1vh, 12px); }
+  .slide-demo-compact .demo-steps-bar { margin-bottom: 10px; }
+  .slide-demo-compact .demo-grid-2 { gap: clamp(10px, 1.2vw, 14px); }
+  .slide-demo-compact .code-box { margin-bottom: 0; }
+  .slide-demo-compact .code-box-head h4 { font-size: 0.8em; line-height: 1.4; }
+  .slide-demo-compact .code-box pre {
+    max-height: none; font-size: clamp(0.86em, 1.35vh, 1em); line-height: 1.55;
+  }
+  .slide-demo-compact .demo-hit-box { margin: 0; height: 100%; display: flex; flex-direction: column; justify-content: center; }
+  .slide-demo-compact .demo-hit-box ul { line-height: 1.55; }
+  .slide-demo-compact .demo-caption { margin-top: auto; }
+  .slide-demo-compact .slide-inner > .demo-grid-2 {
+    flex: 0 0 auto;
+  }
+  .slide-aiteach-demo .aiteach-demo-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: clamp(12px, 1.6vw, 20px);
+    align-items: stretch;
+    min-height: clamp(300px, 50vh, 500px);
+  }
+  .slide-aiteach-demo .aiteach-shot-card {
+    display: flex; flex-direction: column; height: 100%; margin-bottom: 0;
+    padding: clamp(10px, 1.4vh, 16px);
+    border-top: 4px solid var(--pku-red);
+  }
+  .slide-aiteach-demo .aiteach-shot-card h3 {
+    font-size: clamp(0.88em, 1.2vh, 0.96em); margin-bottom: 8px; color: var(--pku-red-dark);
+  }
+  .slide-aiteach-demo .aiteach-shot-wrap {
+    flex: 1 1 0; min-height: 0; margin: 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 10px; overflow: hidden;
+    border: 1px solid rgba(140,21,21,0.12);
+    background: #f8f8f8;
+  }
+  .slide-aiteach-demo .aiteach-shot {
+    display: block; width: 100%; height: 100%;
+    max-height: clamp(260px, 46vh, 460px);
+    object-fit: contain; object-position: top center; background: #fff;
+  }
+  .slide-aiteach-demo .aiteach-shot-caption {
+    margin: 8px 0 0; font-size: clamp(0.84em, 1.15vh, 0.94em);
+    color: var(--text-secondary); text-align: center; line-height: 1.5;
+  }
+  .slide-aiteach-demo-single .slide-inner {
+    gap: clamp(10px, 1.4vh, 16px);
+  }
+  .slide-aiteach-demo-single .aiteach-shot-card--solo {
+    flex: 1 1 0; min-height: 0; max-width: min(820px, 94%);
+    margin: 0 auto; width: 100%;
+  }
+  .slide-aiteach-demo-single .aiteach-shot {
+    max-height: clamp(300px, 54vh, 540px);
+  }
+  .slide-aiteach-demo-single .aiteach-shot-caption {
+    font-size: clamp(0.82em, 1.12vh, 0.92em);
+  }
+
+  /* 第二章 · 工具回顾 */
+  .slide-tools-recap .tools-recap-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: clamp(10px, 1.4vh, 14px);
+  }
+  .slide-tools-recap .tools-recap-item {
+    background: var(--bg-card);
+    border: 1px solid rgba(140,21,21,0.12);
+    border-radius: 14px; padding: clamp(12px, 1.6vh, 16px);
+    box-shadow: var(--shadow);
+  }
+  .slide-tools-recap .tools-recap-item--deepseek { border-top: 3px solid #4d6bfe; }
+  .slide-tools-recap .tools-recap-item--yuanbao { border-top: 3px solid #07c160; }
+  .slide-tools-recap .tools-recap-item--ima { border-top: 3px solid #006eff; }
+  .slide-tools-recap .tools-recap-item--aiteach { border-top: 3px solid var(--pku-red); }
+  .slide-tools-recap .tools-recap-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; margin-bottom: 8px; flex-wrap: wrap;
+  }
+  .slide-tools-recap .tools-recap-name {
+    font-weight: 700; font-size: clamp(1em, 1.4vh, 1.12em);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .slide-tools-recap .tools-recap-name .tool-logo-img--hero { height: 18px; }
+  .slide-tools-recap .tools-recap-tags {
+    display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end;
+  }
+  .slide-tools-recap .tools-recap-desc {
+    font-size: clamp(0.9em, 1.25vh, 1em); line-height: 1.62;
+    color: var(--text-secondary); margin: 0;
+  }
+  .slide-tools-recap .tools-recap-desc strong { color: var(--text-primary); }
+  .slide-tools-recap .tools-recap-keywords {
+    text-align: center; font-size: clamp(0.98em, 1.35vh, 1.08em);
+    margin-bottom: 0;
+  }
+
+  /* WorkBuddy · 单独出 Word 演示 */
+  .slide-wb-solo .wb-solo-grid {
+    display: grid; grid-template-columns: 1fr 1.05fr;
+    gap: clamp(12px, 1.6vw, 20px);
+    align-items: stretch;
+    min-height: clamp(280px, 48vh, 480px);
+  }
+  .slide-wb-solo .wb-shot-card {
+    display: flex; flex-direction: column; height: 100%; margin-bottom: 0;
+    padding: clamp(10px, 1.4vh, 16px);
+    border-top: 4px solid #6C4DFF;
+  }
+  .slide-wb-solo .wb-shot-card h3 {
+    font-size: clamp(0.88em, 1.2vh, 0.96em); margin-bottom: 8px; color: #583ED3;
+  }
+  .slide-wb-solo .wb-shot-wrap {
+    flex: 1 1 0; min-height: 0; margin: 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 10px; overflow: hidden;
+    border: 1px solid rgba(108,77,255,0.15);
+    background: #f8f8f8;
+  }
+  .slide-wb-solo .wb-shot {
+    display: block; width: 100%; height: 100%;
+    max-height: clamp(240px, 44vh, 440px);
+    object-fit: contain; object-position: top center; background: #fff;
+  }
+  .slide-wb-solo .wb-shot-caption {
+    margin: 8px 0 0; font-size: clamp(0.84em, 1.15vh, 0.94em);
+    color: var(--text-secondary); text-align: center; line-height: 1.5;
+  }
+  .slide-wb-solo .wb-solo-prompt-col {
+    display: flex; flex-direction: column; gap: clamp(8px, 1.2vh, 12px); height: 100%;
+  }
+  .slide-wb-solo .wb-solo-prompt-col .code-box { flex: 1 1 0; min-height: 0; margin-bottom: 0; }
+  .slide-wb-solo .wb-solo-prompt-col .code-box pre {
+    max-height: clamp(140px, 22vh, 220px); overflow-y: auto;
+  }
+  .slide-wb-solo .wb-solo-checklist {
+    flex: 0 0 auto;
+    background: linear-gradient(160deg, #fff 0%, rgba(108,77,255,0.06) 100%);
+    border: 1px solid rgba(108,77,255,0.15);
+    border-radius: 12px; padding: clamp(10px, 1.4vh, 14px);
+  }
+  .slide-wb-solo .wb-solo-checklist p {
+    margin: 0; font-size: clamp(0.86em, 1.2vh, 0.96em); line-height: 1.6;
+    color: var(--text-secondary);
+  }
+  .slide-wb-solo .wb-solo-checklist strong { color: #583ED3; }
+
+  /* 内容密集的普通页（如知识库对比表） */
+  .slide-dense .slide-inner { gap: clamp(8px, 1vh, 14px); }
+  .slide-dense .content-header { margin-bottom: clamp(8px, 1vh, 14px); }
+  .slide-dense .grid-2 { gap: clamp(10px, 1.2vw, 16px); }
+  .slide-dense .card { padding: clamp(12px, 1.4vh, 18px); }
+  .slide-dense .compare-table { font-size: clamp(1.04em, 1.75vh, 1.22em); }
+  .slide-dense .compare-table th { padding: clamp(8px, 1.3vh, 14px) clamp(12px, 1.4vw, 18px); }
+  .slide-dense .compare-table td { padding: clamp(8px, 1.3vh, 14px) clamp(12px, 1.4vw, 18px); line-height: 1.5; }
+  .slide-dense .info-box { padding: 12px 16px; font-size: 1em; }
+
+  /* 四段式页 · 卡片 + 示例同屏 */
+  .slide-fourpart .grid-4 { gap: clamp(8px, 1vw, 12px); }
+  .slide-fourpart .grid-4 .card { padding: clamp(10px, 1.2vh, 14px); }
+  .slide-fourpart .grid-4 h4 { font-size: clamp(0.96em, 1.45vh, 1.06em); margin-top: 4px !important; }
+  .slide-fourpart .grid-4 p { font-size: clamp(0.84em, 1.25vh, 0.92em) !important; margin-top: 2px !important; }
+  .slide-fourpart .grid-icon-photo { width: clamp(44px, 6vh, 52px); height: clamp(44px, 6vh, 52px); margin-bottom: 4px; }
+  .slide-fourpart .code-box { margin: 0; padding: clamp(12px, 1.6vh, 18px); }
+  .slide-fourpart .code-box pre { font-size: clamp(0.8em, 1.2vh, 0.9em); line-height: 1.52; max-height: none; }
+  .slide-fourpart .info-box { margin: 0 !important; padding: clamp(8px, 1vh, 12px) clamp(12px, 1.5vw, 16px); }
+  .slide-fourpart .info-box p { font-size: clamp(0.9em, 1.35vh, 1em); }
+
+  /* 实操案例块 */
+  .practice-case {
+    border: 1px solid var(--border); border-radius: 14px; padding: clamp(14px, 2vh, 20px);
+    background: var(--bg-card); margin-bottom: clamp(10px, 1.5vh, 14px);
+  }
+  .practice-case:last-child { margin-bottom: 0; }
+  .practice-case-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed rgba(140,21,21,0.15);
+  }
+  .practice-case-num {
+    width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--pku-red-dark), var(--pku-red));
+    color: #fff; font-weight: 800; font-size: 0.85em;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .practice-case-num.ima-num { background: linear-gradient(135deg, #006eff, #38bdf8); }
+  .practice-case-head h4 { font-size: clamp(1em, 1.7vh, 1.15em); color: var(--pku-red-dark); }
+  .practice-case-head .case-module {
+    font-size: 0.78em; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+    background: rgba(140,21,21,0.08); color: var(--pku-red-dark);
+  }
+  .practice-case-head .case-module.mod-ima { background: rgba(0,110,255,0.1); color: #006eff; }
+  .practice-flow { padding-left: 1.4em; margin: 0; }
+  .practice-flow li {
+    padding: 5px 0 5px 4px; font-size: clamp(0.98em, 1.6vh, 1.14em); line-height: 1.55;
+  }
+  .practice-flow.flow-ima { padding-left: 1.4em; }
+  .practice-prompt {
+    margin-top: 8px; padding: 10px 12px; border-radius: 8px;
+    background: #0f172a; color: #e2e8f0; font-size: clamp(0.86em, 1.4vh, 0.98em);
+    line-height: 1.55; font-family: 'Fira Code','Consolas',monospace;
+  }
+  .practice-tip {
+    margin-top: 8px; font-size: clamp(0.9em, 1.45vh, 1.02em); color: var(--text-secondary);
+  }
+
+  /* 公众号精选案例页（含底部二维码横幅 / 二次函数案例） */
+  .case-article-qr-banner {
+    flex: 0 0 auto;
+    display: flex; align-items: center;
+    gap: clamp(10px, 1.2vw, 14px);
+    padding: clamp(10px, 1.2vh, 14px) clamp(12px, 1.4vw, 16px);
+    background: linear-gradient(135deg, rgba(140,21,21,0.06) 0%, rgba(140,21,21,0.16) 100%);
+    border: 2px solid rgba(140,21,21,0.42);
+    border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(140,21,21,0.14);
+  }
+  .case-quadratic-main {
+    align-items: start;
+    height: auto !important;
+    min-height: 0;
+  }
+  /* 二次函数案例页：主区不撑满幻灯片，黑框/白框均随内容 */
+  .slide.slide-demo.slide-case.slide-case-quadratic .slide-inner > .demo-grid-2.case-quadratic-main {
+    flex: 0 0 auto;
+    height: auto !important;
+  }
+  .slide.slide-demo.slide-case.slide-case-quadratic .demo-grid-2.case-quadratic-main > .code-box,
+  .slide.slide-demo.slide-case.slide-case-quadratic .demo-grid-2.case-quadratic-main > .demo-outcome-panel {
+    height: auto !important;
+    min-height: 0;
+    flex: 0 0 auto;
+    align-self: start;
+  }
+  .slide.slide-demo.slide-case.slide-case-quadratic .demo-grid-2.case-quadratic-main > .code-box {
+    display: block;
+    padding: clamp(12px, 1.5vh, 16px);
+  }
+  .slide.slide-demo.slide-case.slide-case-quadratic .demo-grid-2.case-quadratic-main > .code-box pre {
+    flex: none;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+    font-size: clamp(0.78em, 1.2vh, 0.88em);
+    line-height: 1.55;
+    margin: 0;
+  }
+  .slide.slide-demo.slide-case.slide-case-quadratic .demo-outcome-panel {
+    flex: 0 0 auto;
+  }
+  .slide.slide-demo.slide-case.slide-case-quadratic .demo-outcome-list {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+  .slide.slide-demo.slide-case.slide-case-quadratic .demo-outcome-tip {
+    margin-top: clamp(8px, 1vh, 12px);
+  }
+  .case-article-qr-banner--footer {
+    width: 100%;
+    flex-shrink: 0;
+    margin-top: clamp(8px, 1vh, 12px);
+    padding: clamp(10px, 1.2vh, 14px) clamp(14px, 1.8vw, 20px);
+  }
+  .case-article-qr-banner--footer .qr-box {
+    width: clamp(76px, 8vh, 88px);
+    height: clamp(76px, 8vh, 88px);
+    padding: 5px;
+  }
+  .case-article-qr-banner--footer .qr-box > div,
+  .case-article-qr-banner--footer .qr-box canvas {
+    width: clamp(64px, 6.8vh, 76px) !important;
+    height: clamp(64px, 6.8vh, 76px) !important;
+  }
+  .case-article-qr-banner--footer .case-article-qr-title {
+    font-size: clamp(0.86em, 1.25vh, 0.96em);
+  }
+  .case-article-qr-banner--footer .case-article-qr-sub {
+    display: block;
+    font-size: clamp(0.72em, 1.05vh, 0.82em);
+  }
+  .case-article-qr-media {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .case-article-open-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--pku-red-dark), var(--pku-red));
+    color: #fff;
+    font-size: 0.82em;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+    box-shadow: 0 2px 10px rgba(140,21,21,0.28);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .case-article-open-btn:active {
+    transform: scale(0.97);
+    box-shadow: 0 1px 6px rgba(140,21,21,0.22);
+  }
+  /* 公众号精选案例页（29–34） */
+  .slide-case-article .case-article-main {
+    align-items: start;
+    height: auto !important;
+    min-height: 0;
+  }
+  .slide.slide-demo.slide-case.slide-case-article .slide-inner > .demo-grid-2.case-article-main {
+    flex: 0 0 auto;
+    height: auto !important;
+  }
+  .slide.slide-demo.slide-case.slide-case-article .case-article-main > .demo-outcome-panel {
+    height: auto !important;
+    min-height: 0;
+    flex: 0 0 auto;
+    align-self: start;
+  }
+  .slide.slide-demo.slide-case.slide-case-article .demo-outcome-list {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+  .slide.slide-demo.slide-case.slide-case-article .demo-outcome-tip {
+    margin-top: clamp(8px, 1vh, 12px);
+  }
+  .case-article-qr-text { flex: 1; min-width: 0; text-align: left; }
+  .case-article-qr-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--pku-red); color: #fff;
+    font-size: clamp(0.72em, 1.1vh, 0.82em); font-weight: 800;
+    padding: 5px 12px; border-radius: 999px;
+    margin-bottom: clamp(6px, 0.8vh, 10px);
+    letter-spacing: 0.04em;
+    box-shadow: 0 2px 8px rgba(140,21,21,0.28);
+  }
+  .case-article-qr-title {
+    margin: 0;
+    font-size: clamp(1.05em, 1.65vh, 1.2em);
+    font-weight: 800; line-height: 1.45;
+    color: var(--pku-red-dark);
+  }
+  .case-article-qr-sub {
+    margin: clamp(4px, 0.5vh, 6px) 0 0;
+    font-size: clamp(0.9em, 1.35vh, 1em);
+    color: var(--text-secondary); line-height: 1.5;
+  }
+  .case-article-qr-banner .qr-box {
+    flex-shrink: 0;
+    width: clamp(108px, 11vh, 128px);
+    height: clamp(108px, 11vh, 128px);
+    padding: 8px;
+    background: #fff;
+    border-radius: 14px;
+    border: 2px solid rgba(140,21,21,0.22);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .case-article-qr-banner .qr-box > div,
+  .case-article-qr-banner .qr-box canvas {
+    width: clamp(92px, 9.5vh, 112px) !important;
+    height: clamp(92px, 9.5vh, 112px) !important;
+  }
+
+  /* WorkBuddy 组合页 + 相关徽标 */
+  .practice-case-num.workbuddy-num { background: linear-gradient(135deg, #6C4DFF, #583ED3); }
+  .practice-case-head .case-module.mod-workbuddy { background: rgba(108,77,255,0.12); color: #583ED3; }
+  .slide-wb-combo .slide-inner { gap: clamp(12px, 1.6vh, 20px); }
+  .slide-wb-combo .wb-combo-body {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    gap: clamp(14px, 2vh, 24px);
+  }
+  .slide-wb-combo .grid-2 .card { padding: clamp(14px, 1.8vh, 20px); }
+  .slide-wb-combo .grid-2 h4 { font-size: 1.1em; margin-bottom: 8px; }
+  .slide-wb-combo .grid-2 p { font-size: 1em; line-height: 1.6; color: var(--text-secondary); }
+  .slide-wb-combo .grid-2 p + p { margin-top: 6px; }
+  .slide-wb-combo .wb-flow-arrow { font-size: clamp(0.92em, 1.5vh, 1.05em); padding: 0; }
+  .slide-wb-combo .compare-table { margin: 0; }
+  .slide-wb-combo .info-box { margin: 0; }
+  .wb-flow-arrow {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: 1.4em; color: var(--text-secondary); padding: 6px 0;
+  }
+
+  /* ── 长规约/提示词页（slide-spec-example / slide-prompt-full）──────────────
+     deck.js 对这两类页不做整体缩放（易裁切最后一行），策略是让代码框撑满卡片、
+     内部滚动。这里补上对应布局：桌面上代码框占满剩余高度，超长内容在框内滚动。 */
+  @media (min-width: 1025px) {
+    .slide-spec-example .code-box,
+    .slide-prompt-full .code-box {
+      flex: 1 1 0; min-height: 0;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .slide-spec-example .code-box pre,
+    .slide-prompt-full .code-box pre {
+      flex: 1 1 0; min-height: 0; overflow-y: auto;
+      font-size: clamp(0.62em, 1.2vh, 0.8em); line-height: 1.55;
+    }
+    /* 4.4 Propose 提示词页：提示词精简后，字号上调，便于课堂投屏阅读 */
+    .slide.slide-44-propose .code-box pre {
+      font-size: clamp(0.88em, 1.7vh, 1.08em); line-height: 1.72;
+    }
+  }

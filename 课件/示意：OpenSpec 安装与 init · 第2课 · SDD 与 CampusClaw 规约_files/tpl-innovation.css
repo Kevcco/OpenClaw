@@ -1,0 +1,23 @@
+/* tpl-innovation.css — 模板·摘要条 + 三栏卡片页 */
+
+  /* 关键技术与创新点：摘要 + 三栏 */
+  .tpl-innovation-summary { border: 1.5px solid rgba(126,24,28,0.2); border-radius: 6px; padding: clamp(12px, 1.8vh, 20px) clamp(18px, 2.2vw, 26px); font-size: clamp(1.1em, 1.7vh, 1.3em); font-weight: 700; color: var(--pku-red); line-height: 1.6; flex-shrink: 0; text-align: center; background: #fff; }
+  .tpl-innovation-summary--with-shot {
+    display: flex; flex-direction: column; align-items: stretch;
+    gap: clamp(10px, 1.2vh, 14px);
+    text-align: left; padding: clamp(10px, 1.4vh, 16px) clamp(14px, 1.8vw, 20px);
+  }
+  .tpl-innovation-summary--with-shot .tpl-innovation-summary-copy { flex: 0 0 auto; min-width: 0; }
+  .tpl-ui-shot { flex: 0 0 auto; width: 100%; margin: 0; }
+  .tpl-ui-shot img {
+    display: block; width: 100%; height: auto; max-height: min(280px, 34vh);
+    object-fit: contain; object-position: center;
+    border-radius: 8px; border: 1px solid rgba(126,24,28,0.15);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.07); background: #fafafa;
+  }
+  .tpl-innovation-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(14px, 1.8vw, 20px); flex: 1; min-height: 0; }
+  .tpl-innovation-card { border: 1.5px solid rgba(126,24,28,0.18); border-radius: 8px; padding: clamp(14px, 1.8vh, 20px) clamp(12px, 1.5vw, 18px); text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+  .tpl-innovation-card .tpl-three-icon { margin-bottom: clamp(8px, 1vh, 12px); flex-shrink: 0; }
+  .tpl-innovation-card h4 { font-size: clamp(1.12em, 1.7vh, 1.3em); font-weight: 800; color: #222; margin: 0 0 clamp(6px, 0.8vh, 10px); }
+  .tpl-innovation-card p { font-size: clamp(1em, 1.5vh, 1.14em); line-height: 1.65; color: #555; margin: 0; flex: 1; text-align: left; }
+  .tpl-innovation .tpl-summary-text { font-size: clamp(1em, 1.5vh, 1.14em); }

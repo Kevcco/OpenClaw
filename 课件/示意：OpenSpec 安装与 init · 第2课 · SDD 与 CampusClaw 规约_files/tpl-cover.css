@@ -1,0 +1,139 @@
+/* tpl-cover.css — 模板·封面：校园图铺满上方 + 全宽红幅 + 底部信息 */
+
+  .deck-ppt .slide.tpl-cover,
+  .deck-ppt .slide.tpl-final {
+    --cover-gallery-h: clamp(96px, 26vh, 220px);
+  }
+
+  .deck-ppt .slide.tpl-cover .slide-inner,
+  .deck-ppt .slide.tpl-final .slide-inner {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start !important;
+    overflow: hidden !important;
+    gap: 0 !important;
+  }
+
+  /* 图 + 红幅：高度随内容，不再向下撑满 */
+  .tpl-cover-main,
+  .tpl-final-main {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: calc(100% + 2 * var(--ppt-frame-pad-x));
+    margin: calc(-1 * var(--ppt-frame-pad-y-top)) calc(-1 * var(--ppt-frame-pad-x)) 0;
+  }
+
+  .tpl-cover-gallery {
+    position: relative;
+    flex: 0 0 auto;
+    min-height: var(--cover-gallery-h);
+    height: var(--cover-gallery-h);
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+    width: 100%;
+  }
+
+  .tpl-cover-gallery::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(126, 24, 28, 0.26);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .tpl-cover-photo {
+    margin: 0;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .tpl-cover-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: 0;
+    box-shadow: none;
+    pointer-events: none;
+    user-select: none;
+    filter: brightness(0.62) saturate(0.85);
+  }
+
+  .tpl-cover-band {
+    flex: 0 0 auto;
+    width: 100%;
+    margin: 0;
+    background: var(--pku-red);
+    color: #fff;
+    text-align: center;
+    padding: clamp(30px, 5vh, 56px) clamp(30px, 4.5vw, 64px);
+  }
+
+  .tpl-cover-band .kicker {
+    font-size: clamp(0.9em, 1.2vw, 1.05em);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0 0 clamp(12px, 1.8vh, 20px);
+  }
+
+  .tpl-cover-band h1 {
+    font-size: clamp(1.9em, 3.5vw, 2.85em);
+    font-weight: 800;
+    line-height: 1.34;
+    color: #fff;
+    margin: 0;
+  }
+
+  .tpl-cover-band .sub {
+    font-size: clamp(1em, 1.55vw, 1.28em);
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    margin: clamp(12px, 1.8vh, 20px) 0 0;
+    line-height: 1.55;
+  }
+
+  .tpl-cover-bottom {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: clamp(12px, 2.2vh, 28px) 0 0;
+  }
+
+  /* 信息区：主讲人/地点左对齐且冒号对齐；日期单独居中 */
+  .tpl-cover-meta {
+    text-align: center;
+    font-size: clamp(1.05em, 1.45vw, 1.28em);
+    font-weight: 600;
+    color: #333;
+  }
+
+  .tpl-cover-meta-rows {
+    display: inline-block;
+    text-align: left;
+  }
+
+  .tpl-cover-meta-rows p { margin: 0; line-height: 2.05; }
+
+  .tpl-cover-meta .k {
+    display: inline-flex;
+    justify-content: space-between;
+    width: 3.5em;
+    vertical-align: top;
+  }
+
+  .tpl-cover-meta .sep { margin: 0 0.15em 0 0; }
+  .tpl-cover-meta .date { margin: clamp(10px, 1.4vh, 16px) 0 0; color: #666; }

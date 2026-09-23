@@ -1,0 +1,538 @@
+/* deck.js — 幻灯片交互引擎：翻页导航、进度/计数、自适应缩放（fit）、图片放大灯箱、提示词复制、全屏、二维码生成与浮窗 */
+(function () {
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total = slides.length;
+  let current = 0;
+
+  const progressBar = document.getElementById('progressBar');
+  const slideCounter = document.getElementById('slideCounter');
+  const fullscreenBtn = document.getElementById('fullscreenBtn');
+  const mobilePrevBtn = document.getElementById('mobilePrevBtn');
+  const mobileNextBtn = document.getElementById('mobileNextBtn');
+  const slideJumpSelect = document.getElementById('slideJumpSelect');
+
+  function goTo(index) {
+    if (index < 0 || index >= total || index === current) return;
+    slides[current].classList.remove('active');
+    current = index;
+    slides[current].classList.add('active');
+    slides[current].querySelector('.slide-inner')?.scrollTo(0, 0);
+    updateUI();
+    requestAnimationFrame(function () {
+      requestAnimationFrame(fitActiveSlide);
+    });
+  }
+
+  function next() { goTo(current + 1); }
+  function prev() { goTo(current - 1); }
+
+  function updateUI() {
+    slideCounter.textContent = (current + 1) + ' / ' + total;
+    progressBar.style.width = ((current + 1) / total * 100) + '%';
+    if (mobilePrevBtn) mobilePrevBtn.disabled = current === 0;
+    if (mobileNextBtn) mobileNextBtn.disabled = current === total - 1;
+    if (slideJumpSelect && slideJumpSelect.value !== String(current)) {
+      slideJumpSelect.value = String(current);
+    }
+    document.title = (slides[current].dataset.title || '') + ' · 第2课 · SDD 与 CampusClaw 规约';
+    fitActiveSlide();
+  }
+
+  function initSlideJumpNav() {
+    if (!slideJumpSelect) return;
+    slides.forEach(function (slide, i) {
+      var opt = document.createElement('option');
+      opt.value = String(i);
+      var title = slide.getAttribute('data-title') || ('第 ' + (i + 1) + ' 页');
+      var num = String(i + 1).padStart(2, '0');
+      opt.textContent = num + '. ' + title;
+      slideJumpSelect.appendChild(opt);
+    });
+    slideJumpSelect.addEventListener('change', function () {
+      var idx = parseInt(slideJumpSelect.value, 10);
+      if (!isNaN(idx)) goTo(idx);
+    });
+  }
+
+  /* 内容偏少时自动放大，溢出时自动缩小 */
+  function measureSlideContentLayout(inner) {
+    var gap = parseFloat(getComputedStyle(inner).rowGap || getComputedStyle(inner).gap) || 0;
+    var w = 0;
+    var h = 0;
+    var nodes = inner.children;
+    for (var i = 0; i < nodes.length; i++) {
+      w = Math.max(w, nodes[i].scrollWidth || nodes[i].offsetWidth);
+      h += nodes[i].offsetHeight;
+      if (i > 0) h += gap;
+    }
+    if (h <= 0) {
+      w = inner.scrollWidth;
+      h = inner.scrollHeight;
+    }
+    return { w: w, h: h };
+  }
+
+  function measureSlideContentIntrinsic(inner) {
+    var gap = parseFloat(getComputedStyle(inner).rowGap || getComputedStyle(inner).gap) || 0;
+    var nodes = Array.prototype.slice.call(inner.children);
+    var saved = nodes.map(function (node) {
+      return {
+        flex: node.style.flex,
+        height: node.style.height,
+        minHeight: node.style.minHeight
+      };
+    });
+    var savedInner = {
+      height: inner.style.height,
+      minHeight: inner.style.minHeight
+    };
+
+    inner.style.height = 'auto';
+    inner.style.minHeight = 'auto';
+    nodes.forEach(function (node) {
+      node.style.flex = '0 0 auto';
+      node.style.height = 'auto';
+      node.style.minHeight = '0';
+    });
+    void inner.offsetHeight;
+
+    var w = 0;
+    var h = 0;
+    nodes.forEach(function (node, i) {
+      w = Math.max(w, node.scrollWidth || node.offsetWidth);
+      h += node.offsetHeight;
+      if (i > 0) h += gap;
+    });
+
+    inner.style.height = savedInner.height;
+    inner.style.minHeight = savedInner.minHeight;
+    nodes.forEach(function (node, i) {
+      node.style.flex = saved[i].flex;
+      node.style.height = saved[i].height;
+      node.style.minHeight = saved[i].minHeight;
+    });
+
+    if (h <= 0) {
+      w = inner.scrollWidth;
+      h = inner.scrollHeight;
+    }
+    return { w: w, h: h };
+  }
+
+  var FIT_CHROME = ['tpl-page-head', 'tpl-bar-head', 'tpl-summary-bar', 'tpl-foot-bar', 'tpl-case-steps'];
+
+  function slideUsesGroupedFooter(slide) {
+    if (!slide) return false;
+    if (slide.classList.contains('tpl-table')) return true;
+    return slide.classList.contains('tpl-bg') && !!slide.querySelector('.tpl-dash-cols');
+  }
+
+  function isFitChrome(node, slide) {
+    if (!node || !node.classList) return false;
+    /* 双栏/表格页：正文与底部摘要（及比喻条）同组缩放，左右宽度一致 */
+    if (slideUsesGroupedFooter(slide) && node.classList.contains('tpl-summary-bar')) {
+      return false;
+    }
+    for (var i = 0; i < FIT_CHROME.length; i++) {
+      if (node.classList.contains(FIT_CHROME[i])) return true;
+    }
+    return false;
+  }
+
+  function getFitBodyAnchor(inner, slide) {
+    if (slideUsesGroupedFooter(slide)) {
+      return inner.querySelector(':scope > .tpl-foot-bar');
+    }
+    return inner.querySelector(':scope > .tpl-summary-bar')
+      || inner.querySelector(':scope > .tpl-foot-bar');
+  }
+
+  /** deck-ppt：页眉/摘要/红条保持不动，只缩放中间正文，避免白卡片边距被 transform 带偏 */
+  function ensureSlideFitBody(inner, slide) {
+    var existing = inner.querySelector(':scope > .slide-fit-body');
+    if (existing) return existing;
+    var children = Array.prototype.slice.call(inner.children);
+    var movables = children.filter(function (c) { return !isFitChrome(c, slide); });
+    if (!movables.length) return inner;
+    var body = document.createElement('div');
+    body.className = 'slide-fit-body';
+    movables.forEach(function (node) { body.appendChild(node); });
+    var anchor = getFitBodyAnchor(inner, slide);
+    if (anchor) inner.insertBefore(body, anchor);
+    else inner.appendChild(body);
+    return body;
+  }
+
+  function resetFitEl(el) {
+    if (!el) return;
+    el.style.transform = 'none';
+    el.style.transformOrigin = '';
+    el.style.marginTop = '';
+    el.style.marginBottom = '';
+    el.style.overflowY = '';
+    el.style.width = '';
+    el.style.maxWidth = '';
+  }
+
+  function applyFitScale(target, scale, contentH, allowCenterOrigin, opts) {
+    opts = opts || {};
+    target.style.transform = 'scale(' + scale + ')';
+    target.style.marginBottom = (contentH * (scale - 1)) + 'px';
+    if (opts.fillWidth && scale < 1) {
+      /* 仅因高度缩小时，加宽布局盒再 scale，避免两侧留白 */
+      target.style.width = (100 / scale) + '%';
+      target.style.maxWidth = (100 / scale) + '%';
+      target.style.transformOrigin = 'top left';
+      target.style.overflowY = 'visible';
+    } else if (scale < 1 || !allowCenterOrigin) {
+      target.style.transformOrigin = 'top center';
+      target.style.overflowY = 'visible';
+    } else {
+      target.style.transformOrigin = 'center center';
+    }
+  }
+
+  function fitActiveSlide() {
+    slides.forEach(function (slide) {
+      var inner = slide.querySelector('.slide-inner');
+      resetFitEl(inner);
+      resetFitEl(inner && inner.querySelector(':scope > .slide-fit-body'));
+    });
+
+    /* 移动端：优先纵向滚动，不做整体缩放（避免文字过小） */
+    if (window.innerWidth <= 1024) return;
+
+    var slide = slides[current];
+    if (!slide) return;
+
+    var inner = slide.querySelector('.slide-inner');
+    if (!inner) return;
+
+    var deckEl = document.getElementById('deck');
+    var isDeckPpt = deckEl && deckEl.classList.contains('deck-ppt');
+
+    if (isDeckPpt) {
+      if (slide.classList.contains('tpl-cover') || slide.classList.contains('tpl-final')) return;
+      /* 长规约/提示词页：不整体 scale（易裁切最后一行），靠 code-box 内滚动 */
+      if (slide.classList.contains('slide-spec-example') || slide.classList.contains('slide-prompt-full')) return;
+    } else if (slide.classList.contains('slide-cover') || slide.classList.contains('slide-chapter')
+        || slide.classList.contains('tpl-cover') || slide.classList.contains('tpl-final')) {
+      return;
+    }
+
+    requestAnimationFrame(function () {
+      var target = isDeckPpt ? ensureSlideFitBody(inner, slide) : inner;
+      var isDemo = !isDeckPpt && (slide.classList.contains('slide-demo') || slide.classList.contains('slide-case'));
+      var size = isDemo ? measureSlideContentLayout(target) : measureSlideContentIntrinsic(target);
+      var contentW = size.w;
+      var contentH = size.h;
+
+      var availW;
+      var availH;
+      if (target === inner) {
+        var cs = getComputedStyle(inner);
+        availW = inner.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+        availH = inner.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
+      } else {
+        availW = target.clientWidth;
+        availH = target.clientHeight;
+      }
+
+      if (contentW <= 0 || contentH <= 0 || availW <= 0 || availH <= 0) return;
+
+      var scale = Math.min(availW / contentW, availH / contentH);
+
+      if (isDeckPpt) {
+        scale = Math.max(0.72, Math.min(1, scale));
+        if (scale < 0.98) {
+          applyFitScale(target, scale, contentH, false, { fillWidth: target !== inner });
+        }
+      } else if (isDemo) {
+        if (scale < 0.98) {
+          scale = Math.max(0.5, scale);
+          applyFitScale(target, scale, contentH, false);
+        }
+      } else {
+        scale = Math.max(0.55, Math.min(2.8, scale));
+        if (Math.abs(scale - 1) > 0.008) {
+          applyFitScale(target, scale, contentH, scale > 1);
+        }
+      }
+    });
+  }
+
+  window.addEventListener('resize', function () {
+    clearTimeout(window._fitTimer);
+    window._fitTimer = setTimeout(fitActiveSlide, 120);
+  });
+
+  document.getElementById('clickPrev').addEventListener('click', prev);
+  document.getElementById('clickNext').addEventListener('click', next);
+  mobilePrevBtn?.addEventListener('click', prev);
+  mobileNextBtn?.addEventListener('click', next);
+
+  /* 图片点击放大 */
+  var imgLightbox = document.createElement('div');
+  imgLightbox.className = 'img-lightbox';
+  imgLightbox.setAttribute('role', 'dialog');
+  imgLightbox.setAttribute('aria-modal', 'true');
+  imgLightbox.setAttribute('aria-label', '放大查看图片');
+  imgLightbox.innerHTML =
+    '<button type="button" class="img-lightbox-close" aria-label="关闭">✕</button>' +
+    '<div class="img-lightbox-inner">' +
+      '<img class="img-lightbox-img" alt="">' +
+      '<p class="img-lightbox-caption"></p>' +
+    '</div>' +
+    '<span class="img-lightbox-hint">点击空白处或按 Esc 关闭</span>';
+  document.body.appendChild(imgLightbox);
+
+  var lbImg = imgLightbox.querySelector('.img-lightbox-img');
+  var lbCaption = imgLightbox.querySelector('.img-lightbox-caption');
+  var lbClose = imgLightbox.querySelector('.img-lightbox-close');
+
+  function isLightboxOpen() {
+    return imgLightbox.classList.contains('open') || iframeLightbox.classList.contains('open');
+  }
+
+  function openImageLightbox(src, alt) {
+    if (!src) return;
+    lbImg.src = src;
+    lbImg.alt = alt || '';
+    if (alt) {
+      lbCaption.textContent = alt;
+      lbCaption.hidden = false;
+    } else {
+      lbCaption.textContent = '';
+      lbCaption.hidden = true;
+    }
+    imgLightbox.classList.add('open');
+  }
+
+  function closeImageLightbox() {
+    imgLightbox.classList.remove('open');
+    lbImg.removeAttribute('src');
+  }
+
+  function bindZoomableImage(img) {
+    if (!img || img.dataset.zoomBound) return;
+    if (img.closest('.tpl-cover-gallery')) return;
+    img.dataset.zoomBound = '1';
+    img.classList.add('img-zoomable');
+    img.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openImageLightbox(img.currentSrc || img.src, img.alt);
+    });
+  }
+
+  document.querySelectorAll('.deck img').forEach(bindZoomableImage);
+
+  /* HTML 演示放大灯箱 */
+  var iframeLightbox = document.createElement('div');
+  iframeLightbox.className = 'iframe-lightbox';
+  iframeLightbox.setAttribute('role', 'dialog');
+  iframeLightbox.setAttribute('aria-modal', 'true');
+  iframeLightbox.setAttribute('aria-label', '放大查看演示');
+  iframeLightbox.innerHTML =
+    '<div class="iframe-lightbox-inner">' +
+      '<div class="iframe-lightbox-head">' +
+        '<p class="iframe-lightbox-title"></p>' +
+        '<button type="button" class="iframe-lightbox-close" aria-label="关闭">✕</button>' +
+      '</div>' +
+      '<iframe title="" sandbox="allow-scripts allow-same-origin"></iframe>' +
+    '</div>' +
+    '<span class="iframe-lightbox-hint">点击空白处或按 Esc 关闭</span>';
+  document.body.appendChild(iframeLightbox);
+
+  var lbIframe = iframeLightbox.querySelector('iframe');
+  var lbIframeTitle = iframeLightbox.querySelector('.iframe-lightbox-title');
+  var lbIframeClose = iframeLightbox.querySelector('.iframe-lightbox-close');
+
+  function openIframeLightbox(src, title) {
+    if (!src) return;
+    lbIframe.src = src;
+    lbIframe.title = title || '演示预览';
+    lbIframeTitle.textContent = title || '演示预览';
+    iframeLightbox.classList.add('open');
+  }
+
+  function closeIframeLightbox() {
+    iframeLightbox.classList.remove('open');
+    lbIframe.removeAttribute('src');
+  }
+
+  document.querySelectorAll('.html-preview-expand-btn').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openIframeLightbox(
+        btn.getAttribute('data-expand-src'),
+        btn.getAttribute('data-expand-title') || '演示预览'
+      );
+    });
+  });
+
+  iframeLightbox.addEventListener('click', function (e) {
+    if (e.target === iframeLightbox || e.target === lbIframeClose) closeIframeLightbox();
+  });
+  lbIframe.addEventListener('click', function (e) { e.stopPropagation(); });
+  lbIframeClose.addEventListener('click', function (e) {
+    e.preventDefault();
+    closeIframeLightbox();
+  });
+
+  document.querySelectorAll('.copy-prompt-btn').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var sel = btn.getAttribute('data-copy-target');
+      var pre = sel ? document.querySelector(sel) : null;
+      var text = pre ? pre.textContent.trim() : '';
+      if (!text) return;
+
+      function onCopied() {
+        var label = btn.getAttribute('data-copy-label') || '复制提示词';
+        btn.textContent = '已复制 ✓';
+        btn.classList.add('copied');
+        setTimeout(function () {
+          btn.textContent = label;
+          btn.classList.remove('copied');
+        }, 1800);
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(onCopied).catch(function () {
+          fallbackCopy(text, onCopied);
+        });
+      } else {
+        fallbackCopy(text, onCopied);
+      }
+    });
+  });
+
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      if (document.execCommand('copy')) done();
+    } catch (err) {}
+    document.body.removeChild(ta);
+  }
+
+  imgLightbox.addEventListener('click', function (e) {
+    if (e.target === imgLightbox || e.target === lbClose) closeImageLightbox();
+  });
+  lbImg.addEventListener('click', function (e) { e.stopPropagation(); });
+  lbClose.addEventListener('click', function (e) {
+    e.preventDefault();
+    closeImageLightbox();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+    if (isLightboxOpen()) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (iframeLightbox.classList.contains('open')) closeIframeLightbox();
+        else closeImageLightbox();
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') {
+      e.preventDefault(); next();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
+      e.preventDefault(); prev();
+    } else if (e.key === 'Home') {
+      e.preventDefault(); goTo(0);
+    } else if (e.key === 'End') {
+      e.preventDefault(); goTo(total - 1);
+    } else if (e.key === 'f' || e.key === 'F') {
+      e.preventDefault(); toggleFullscreen();
+    }
+  });
+
+  /* 触摸滑动 */
+  let touchStartX = 0;
+  document.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (isLightboxOpen()) return;
+    const diff = e.changedTouches[0].screenX - touchStartX;
+    if (Math.abs(diff) > 50) diff < 0 ? next() : prev();
+  }, { passive: true });
+
+  /* 全屏 */
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen();
+    }
+  }
+  fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+  /* 二维码 */
+  function makeQR(containerId, size, text) {
+    const el = document.getElementById(containerId);
+    if (!el || typeof QRCode === 'undefined') return;
+    try {
+      new QRCode(el, { text, width: size, height: size, colorDark: '#8c1515', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+    } catch (e) {}
+  }
+
+  function attachArticleOpenButtons(pairs) {
+    pairs.forEach(function (pair) {
+      var qrEl = document.getElementById(pair[0]);
+      var url = pair[1];
+      if (!qrEl || !url) return;
+      if (qrEl.parentElement && qrEl.parentElement.classList.contains('case-article-qr-media')) return;
+
+      var wrap = document.createElement('div');
+      wrap.className = 'case-article-qr-media';
+      qrEl.parentNode.insertBefore(wrap, qrEl);
+      wrap.appendChild(qrEl);
+
+      var btn = document.createElement('a');
+      btn.className = 'case-article-open-btn';
+      btn.href = url;
+      btn.target = '_blank';
+      btn.rel = 'noopener noreferrer';
+      btn.setAttribute('aria-label', '直接打开公众号文章');
+      btn.textContent = '直接打开';
+      wrap.appendChild(btn);
+    });
+  }
+
+  const url = location.href.split('?')[0].split('#')[0];
+  makeQR('qrCanvas', 160, url);
+  const articleQRCodes = [
+    ['caseQuadraticArticleQR', 'https://mp.weixin.qq.com/s/MKdzaddnKH_L7ca9wmVWbA'],
+    ['caseArticleQR1', 'https://mp.weixin.qq.com/s/5AEaKYYXPXr47lbN7TLDDQ'],
+    ['caseArticleQR2', 'https://mp.weixin.qq.com/s/O5kMR-1lcAggzBpMJoNUjg'],
+    ['caseArticleQR3', 'https://mp.weixin.qq.com/s/qSlFYCUQVsoQjdZyIaTeEQ'],
+    ['caseArticleQR4', 'https://mp.weixin.qq.com/s/_WQqmkSF9mVPBL5hLlYk_g'],
+    ['caseArticleQR5', 'https://mp.weixin.qq.com/s/KEovCBY4mVAfJFQXuBI2gA'],
+    ['caseArticleQR6', 'https://mp.weixin.qq.com/s/18zHYuRukiLMeYjhCZkdkQ'],
+    ['caseArticleQR7', 'https://mp.weixin.qq.com/s/t8PStBlvAWCuYg7rnoGMfQ'],
+    ['caseArticleQR8', 'https://mp.weixin.qq.com/s/2_XL2BqG_EnEZHMIIREgFw']
+  ];
+  articleQRCodes.forEach(function (pair) { makeQR(pair[0], 72, pair[1]); });
+  attachArticleOpenButtons(articleQRCodes);
+
+  window.toggleQR = function () {
+    const body = document.getElementById('qrBody');
+    const btn = document.getElementById('qrToggleBtn');
+    const hidden = body.classList.toggle('qr-hidden');
+    btn.classList.toggle('qr-open', !hidden);
+  };
+
+  initSlideJumpNav();
+  updateUI();
+})();

@@ -1,0 +1,53 @@
+/* tpl-conclusion.css — 模板·编号结论列表页 */
+
+  /* 多步时间线：卡片网格，编号顶部对齐 */
+  .tpl-conclusion-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: visible;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(10px, 1.2vw, 14px);
+    padding: 0;
+    border: none;
+    border-radius: 0;
+  }
+
+  .tpl-conclusion-item {
+    display: flex;
+    gap: clamp(10px, 1.2vw, 14px);
+    align-items: flex-start;
+    margin-bottom: 0;
+    border: 1.5px solid rgba(126, 24, 28, 0.2);
+    border-radius: 8px;
+    padding: clamp(12px, 1.4vh, 16px) clamp(10px, 1.2vw, 14px);
+    box-shadow: 0 2px 10px rgba(126, 24, 28, 0.06);
+    min-height: 0;
+  }
+
+  .tpl-conclusion-num {
+    font-size: clamp(1.6em, 2.4vh, 2em);
+    font-weight: 900;
+    line-height: 1;
+    color: var(--pku-red);
+    flex-shrink: 0;
+    width: 1.1em;
+    text-align: center;
+    padding-top: 2px;
+  }
+
+  .tpl-conclusion-body { min-width: 0; flex: 1; }
+
+  .tpl-conclusion-body h4 {
+    font-size: clamp(1.02em, 1.5vh, 1.16em);
+    font-weight: 800;
+    color: var(--pku-red);
+    margin: 0 0 3px;
+  }
+
+  .tpl-conclusion-body p {
+    font-size: clamp(0.92em, 1.35vh, 1.04em);
+    line-height: 1.5;
+    color: #444;
+    margin: 0;
+  }
