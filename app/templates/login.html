@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>登录 · CampusClaw</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+    <script src="{{ url_for('static', filename='login.js') }}" defer></script>
+  </head>
+  <body class="login-page">
+    <header class="login-topbar"><a class="brand" href="{{ url_for('auth.login') }}"><span class="brand-mark">C</span><span>CampusClaw<small>教研空间</small></span></a><button class="icon-button" type="button" data-theme-toggle aria-label="切换主题" title="切换主题">◐</button></header>
+    <main class="login-layout">
+      <section class="login-intro"><p class="eyebrow">CAMPUSCLAW · 教研协作</p><h1>让教学资料，<br>在班级里持续生长。</h1><p>安全整理、共享和复用教研材料。登录后进入所属班级的专属空间。</p><div class="intro-rule"><span></span><small>CLASSROOM KNOWLEDGE SPACE</small></div></section>
+      <section class="login-form-section" aria-labelledby="login-title"><div class="login-card-head"><span class="login-lock">C</span><p class="eyebrow">WELCOME BACK</p><h2 id="login-title">登录 CampusClaw</h2><p>使用课程提供的账号继续</p></div>
+        {% if error %}<div class="form-alert" role="alert">{{ error }}</div>{% endif %}
+        <form method="post" action="{{ url_for('auth.login') }}" class="login-form">
+          <label class="field-label" for="username">用户名<input id="username" name="username" autocomplete="username" placeholder="请输入用户名" required autofocus></label>
+          <label class="field-label" for="password">密码<input id="password" type="password" name="password" autocomplete="current-password" placeholder="请输入密码" required></label>
+          <button class="primary-button login-submit" type="submit">登录并进入工作区 <span aria-hidden="true">→</span></button>
+        </form>
+        <p class="login-footnote">账号权限与班级范围由服务端会话确认。</p>
+      </section>
+    </main>
+    <footer class="login-footer"><span>CampusClaw</span><span>教研材料与知识库底座</span></footer>
+  </body>
+</html>
