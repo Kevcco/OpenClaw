@@ -164,6 +164,13 @@ def chunk_text(
     if not isinstance(text, str) or not text.strip():
         return []
     strategy = _validate_strategy(strategy)
+    if strategy == "auto":
+        # The default strategy is intentionally fixed; custom window and
+        # preprocessing options only apply when explicitly selecting custom.
+        max_chars = DEFAULT_MAX_CHARS
+        overlap_chars = DEFAULT_OVERLAP_CHARS
+        remove_urls = False
+        collapse_whitespace = False
     if strategy == "custom":
         if not 100 <= max_chars <= 2000:
             raise ValueError("custom max_chars must be between 100 and 2000")

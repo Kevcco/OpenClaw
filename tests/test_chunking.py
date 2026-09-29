@@ -26,6 +26,23 @@ def test_custom_strategy_honors_limits_and_preprocessing_basis():
     assert all(chunk.offset_basis == "normalized" for chunk in chunks)
 
 
+def test_auto_ignores_custom_window_and_preprocessing_options():
+    body = ("第一句。" * 180) + " https://example.test/a\n第二段。"
+    default = chunk_text(body)
+    overridden = chunk_text(
+        body,
+        strategy="auto",
+        max_chars=2000,
+        overlap_chars=0,
+        separators=("。",),
+        remove_urls=True,
+        collapse_whitespace=True,
+    )
+    assert [chunk.text for chunk in overridden] == [chunk.text for chunk in default]
+    assert all(len(chunk.text) <= 800 for chunk in overridden)
+    assert all(chunk.offset_basis == "body_text" for chunk in overridden)
+
+
 def test_hierarchy_keeps_markdown_heading_in_section():
     body = "# 第一章\n正文一\n## 第二章\n正文二"
     chunks = chunk_text(body, strategy="hierarchy", max_chars=800, overlap_chars=80)
