@@ -22,6 +22,11 @@ def test_workspace_loads_assets_and_uses_server_identity(client, app):
     assert b"/api/materials/upload" in script.data
     assert b"/api/materials" in script.data
     assert b"textContent = material.body_text" in script.data
+    assert b"/api/knowledge/search" in script.data
+    assert b"/api/ask" in script.data
+    assert b"textContent = hit.snippet" in script.data
+    assert b"data-knowledge-search" in page.data
+    assert b"data-answer-panel" in page.data
     assert stylesheet.status_code == 200
 
 
@@ -36,4 +41,3 @@ def test_student_cannot_use_upload_even_with_workspace_script(client, app):
 
     assert client.get("/api/me").json["role"] == "student"
     assert client.post("/api/materials/upload").status_code == 403
-

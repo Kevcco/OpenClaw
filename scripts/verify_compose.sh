@@ -48,6 +48,58 @@ python3 -c 'import json,sys; assert any("A班" in x["title"] for x in json.load(
 python3 -c 'import json,sys; assert any("B班" in x["title"] for x in json.load(sys.stdin)["materials"])' <<<"$student_b_materials"
 echo "PASS class isolation: A and B lists contain their own seed materials"
 
+assert_search() {
+  local jar="$1"
+  local query="$2"
+  local mode="$3"
+  local expected_title="$4"
+  local response
+  response="$(curl -fsS -G -b "$jar" \
+    --data-urlencode "q=$query" \
+    --data-urlencode "mode=$mode" \
+    --data-urlencode "limit=10" \
+    "$BASE_URL/api/knowledge/search")"
+  python3 -c 'import json,sys
+payload=json.load(sys.stdin)
+assert payload["mode"] == sys.argv[1]
+assert payload["hits"], payload
+assert any(sys.argv[2] in hit["source"]["title"] for hit in payload["hits"]), payload
+for hit in payload["hits"]:
+    source=hit["source"]
+    assert source["preview_url"].startswith("/api/materials/")
+    assert source["download_url"].startswith("/api/materials/")
+    assert hit["snippet"]
+if sys.argv[1] == "vector":
+    assert all(hit.get("score", 0) >= 0.35 for hit in payload["hits"])
+' "$mode" "$expected_title" <<<"$response"
+  echo "PASS search $mode: $query"
+}
+
+assert_search "$student_a_jar" "一次函数" keyword "A班"
+assert_search "$student_a_jar" "一次函数" vector "A班"
+assert_search "$student_a_jar" "一次函数" hybrid "A班"
+
+cross_search="$(curl -fsS -G -b "$student_a_jar" \
+  --data-urlencode 'q=几何图形' \
+  --data-urlencode 'mode=keyword' \
+  "$BASE_URL/api/knowledge/search")"
+python3 -c 'import json,sys; payload=json.load(sys.stdin); assert payload["hits"] == []; assert "B班" not in json.dumps(payload, ensure_ascii=False)' <<<"$cross_search"
+echo "PASS retrieval isolation: A cannot search B material"
+
+ask_response="$(curl -fsS -b "$student_a_jar" \
+  -H 'Content-Type: application/json' \
+  --data '{"question":"一次函数基础"}' \
+  "$BASE_URL/api/ask")"
+python3 -c 'import json,sys; payload=json.load(sys.stdin); assert "[1]" in payload["answer"]; assert payload["citations"]; assert payload["citations"][0]["index"] == 1' <<<"$ask_response"
+echo "PASS traceable answer: citation [1] maps to source"
+
+empty_ask="$(curl -fsS -b "$student_a_jar" \
+  -H 'Content-Type: application/json' \
+  --data '{"question":"zxqv-no-material-9f2a8c7e"}' \
+  "$BASE_URL/api/ask")"
+python3 -c 'import json,sys; payload=json.load(sys.stdin); assert payload["citations"] == []; assert "未找到" in payload["answer"]' <<<"$empty_ask"
+echo "PASS no-evidence answer: empty citations"
+
 title="Compose验收-$(date +%s)"
 printf '# Compose verification\nThis material verifies upload and persistence.\n' > "$WORK_DIR/compose-check.md"
 upload="$(curl -fsS -b "$teacher_jar" \
@@ -78,5 +130,7 @@ teacher_jar="$WORK_DIR/teacher_a.cookies"
 after_restart="$(curl -fsS -b "$teacher_jar" "$BASE_URL/api/materials")"
 python3 -c 'import json,sys; assert any(sys.argv[1] == x["title"] for x in json.load(sys.stdin)["materials"])' "$title" <<<"$after_restart"
 echo "PASS persistence: uploaded material remains after down/up"
+assert_search "$teacher_jar" "Compose verification" keyword "Compose验收"
+assert_search "$teacher_jar" "Compose verification" hybrid "Compose验收"
 
 echo "Compose verification completed successfully."

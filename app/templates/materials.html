@@ -53,6 +53,18 @@
           <div class="list-meta"><span data-result-count>{{ materials|length }} 项</span><button class="icon-button refresh-button" type="button" data-refresh aria-label="刷新材料列表" title="刷新">↻</button></div>
         </div>
 
+        <section class="retrieval-panel" aria-labelledby="retrieval-title">
+          <div class="retrieval-heading"><div><p class="eyebrow">TRACEABLE RETRIEVAL</p><h2 id="retrieval-title">知识库检索</h2><p>只检索当前班级，结果保留材料出处。</p></div></div>
+          <form class="retrieval-form" data-knowledge-search>
+            <label class="search-box retrieval-query"><span aria-hidden="true">⌕</span><input name="query" type="search" placeholder="输入问题或知识点" autocomplete="off" required></label>
+            <label class="retrieval-mode"><span>模式</span><select name="mode"><option value="hybrid">混合检索</option><option value="keyword">关键词</option><option value="vector">向量</option></select></label>
+            <button class="primary-button" type="submit" data-knowledge-submit>检索</button>
+          </form>
+          <div class="retrieval-status" data-knowledge-status role="status" hidden></div>
+          <section class="answer-panel" data-answer-panel hidden aria-live="polite"><p class="eyebrow">ANSWER</p><p data-answer-text></p></section>
+          <div class="retrieval-results" data-knowledge-results aria-live="polite"></div>
+        </section>
+
         <div class="notice" data-notice role="status" hidden></div>
         <div class="material-list" data-material-list aria-live="polite">
           {% for material in materials %}

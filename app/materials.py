@@ -12,7 +12,7 @@ from flask import (
     send_file,
 )
 
-from . import db
+from . import db, indexing
 from .auth import current_user, login_required, role_required
 from . import knowledge
 
@@ -76,6 +76,11 @@ def material_detail(material_id):
         return jsonify({"id": material_id, "title": title})
 
     connection = db.get_db()
+    indexing.remove_material_index(
+        connection,
+        material_id,
+        vector_store=current_app.extensions.get("knowledge_vector_store"),
+    )
     connection.execute(
         "DELETE FROM materials WHERE id = ? AND class_id = ?",
         (material_id, user["class_id"]),
@@ -153,4 +158,19 @@ def material_upload():
             final_path.unlink()
         return jsonify({"error": "upload failed"}), 500
 
-    return jsonify({"material_id": material_id, "title": title}), 201
+    try:
+        index_result = indexing.rebuild_material(
+            connection,
+            material_id,
+            embedding_provider=current_app.extensions.get("knowledge_embedding_provider"),
+            vector_store=current_app.extensions.get("knowledge_vector_store"),
+        )
+    except indexing.IndexingError as error:
+        index_result = {"vector_status": "failed", "error": str(error)}
+    return jsonify(
+        {
+            "material_id": material_id,
+            "title": title,
+            "index_status": index_result.get("vector_status", "unavailable"),
+        }
+    ), 201

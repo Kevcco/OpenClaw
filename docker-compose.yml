@@ -1,7 +1,18 @@
 services:
+  qdrant:
+    image: qdrant/qdrant:v1.15.0
+    restart: unless-stopped
+    expose:
+      - "6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
   app:
     build: .
     restart: unless-stopped
+    depends_on:
+      qdrant:
+        condition: service_started
     ports:
       - "${WEB_PORT:-8080}:8080"
     env_file:
@@ -9,6 +20,11 @@ services:
     environment:
       DATABASE_PATH: /app/data/app.db
       UPLOAD_DIR: /app/uploads
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-campusclaw_chunks}
+      QDRANT_WAIT_SECONDS: ${QDRANT_WAIT_SECONDS:-30}
+      WAIT_FOR_QDRANT: ${WAIT_FOR_QDRANT:-1}
+      EMBEDDING_MODE: ${EMBEDDING_MODE:-hash}
     volumes:
       - ./data:/app/data
       - ./uploads:/app/uploads
@@ -18,3 +34,6 @@ services:
       timeout: 3s
       retries: 10
       start_period: 5s
+
+volumes:
+  qdrant_data:

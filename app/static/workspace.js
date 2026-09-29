@@ -12,6 +12,14 @@
   const commandDialog = $(`[data-command-dialog]`);
   const commandInput = $(`[data-command-input]`);
   const previewDialog = $(`[data-preview-dialog]`);
+  const knowledgeForm = $(`[data-knowledge-search]`);
+  const knowledgeQuery = knowledgeForm?.elements.query;
+  const knowledgeMode = knowledgeForm?.elements.mode;
+  const knowledgeSubmit = $(`[data-knowledge-submit]`);
+  const knowledgeStatus = $(`[data-knowledge-status]`);
+  const knowledgeResults = $(`[data-knowledge-results]`);
+  const answerPanel = $(`[data-answer-panel]`);
+  const answerText = $(`[data-answer-text]`);
   let user = null;
   let activeIndex = 0;
 
@@ -28,7 +36,11 @@
       throw new Error("登录已失效");
     }
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || `请求失败 (${response.status})`);
+    if (!response.ok) {
+      const error = new Error(payload.error || `请求失败 (${response.status})`);
+      error.status = response.status;
+      throw error;
+    }
     return payload;
   };
 
@@ -85,6 +97,151 @@
     actions.append(preview, download);
     row.append(icon, main, actions);
     return row;
+  };
+
+  const setKnowledgeStatus = (message, state = "") => {
+    knowledgeStatus.textContent = message;
+    knowledgeStatus.className = "retrieval-status";
+    if (state) knowledgeStatus.classList.add(state);
+    knowledgeStatus.hidden = !message;
+  };
+
+  const clearAnswer = () => {
+    answerText.textContent = "";
+    answerPanel.replaceChildren(answerPanel.querySelector(".eyebrow"), answerText);
+    answerPanel.hidden = true;
+  };
+
+  const makeKnowledgeHit = (hit, index) => {
+    const source = hit.source || {};
+    const card = document.createElement("article");
+    card.className = "retrieval-hit";
+
+    const head = document.createElement("div");
+    head.className = "retrieval-hit-head";
+    const title = document.createElement("div");
+    title.className = "retrieval-hit-title";
+    title.textContent = `[${index}] ${source.title || "未命名材料"}`;
+    const score = document.createElement("span");
+    score.className = "retrieval-hit-score";
+    if (typeof hit.score === "number") score.textContent = `相关度 ${hit.score.toFixed(4)}`;
+    head.append(title, score);
+
+    const meta = document.createElement("div");
+    meta.className = "retrieval-hit-meta";
+    const chunk = document.createElement("span");
+    chunk.textContent = `切片 ${source.chunk_index ?? "-"}`;
+    const range = document.createElement("span");
+    range.textContent = `字符 ${source.start_offset ?? "-"}-${source.end_offset ?? "-"}`;
+    const strategy = document.createElement("span");
+    strategy.textContent = source.strategy ? `策略 ${source.strategy}` : "";
+    meta.append(chunk, range);
+    if (strategy.textContent) meta.append(strategy);
+
+    const snippet = document.createElement("p");
+    snippet.className = "retrieval-hit-snippet";
+    snippet.textContent = hit.snippet || "";
+
+    const links = document.createElement("div");
+    links.className = "retrieval-hit-links";
+    if (source.preview_url && source.material_id != null) {
+      const preview = document.createElement("button");
+      preview.type = "button";
+      preview.addEventListener("click", () => openPreview(source.material_id));
+      preview.textContent = "打开材料";
+      links.append(preview);
+    }
+    if (source.download_url) {
+      const download = document.createElement("a");
+      download.href = source.download_url;
+      download.textContent = "下载原文件";
+      links.append(download);
+    }
+    card.append(head, meta, snippet, links);
+    return card;
+  };
+
+  const renderKnowledgeHits = (hits) => {
+    knowledgeResults.replaceChildren();
+    hits.forEach((hit, index) => knowledgeResults.append(makeKnowledgeHit(hit, index + 1)));
+  };
+
+  const renderAnswer = (payload) => {
+    answerText.textContent = payload.answer || "";
+    const eyebrow = answerPanel.querySelector(".eyebrow") || document.createElement("p");
+    eyebrow.className = "eyebrow";
+    eyebrow.textContent = "ANSWER";
+    const nodes = [eyebrow, answerText];
+    if (Array.isArray(payload.citations) && payload.citations.length) {
+      const list = document.createElement("ol");
+      list.className = "answer-citations";
+      payload.citations.forEach((citation) => {
+        const item = document.createElement("li");
+        const source = citation.source || {};
+        item.textContent = `[${citation.index ?? "?"}] ${source.title || "未命名材料"} · 切片 ${source.chunk_index ?? "-"}`;
+        list.append(item);
+      });
+      nodes.push(list);
+    }
+    answerPanel.replaceChildren(...nodes);
+    answerPanel.hidden = false;
+  };
+
+  const askWithEvidence = async (question) => {
+    try {
+      const payload = await fetchJson("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+      renderAnswer(payload);
+      setKnowledgeStatus("已根据本班材料生成回答。", "");
+    } catch (error) {
+      if (error.message === "登录已失效") throw error;
+      clearAnswer();
+      setKnowledgeStatus(`检索成功，但回答失败：${error.message}`, "error");
+    }
+  };
+
+  const searchKnowledge = async (event) => {
+    event.preventDefault();
+    const query = knowledgeQuery.value.trim();
+    const mode = knowledgeMode.value;
+    if (!query) {
+      renderKnowledgeHits([]);
+      clearAnswer();
+      setKnowledgeStatus("请输入问题或知识点。", "error");
+      knowledgeQuery.focus();
+      return;
+    }
+    knowledgeSubmit.disabled = true;
+    clearAnswer();
+    renderKnowledgeHits([]);
+    setKnowledgeStatus("正在检索本班知识库…", "loading");
+    try {
+      const url = new URL("/api/knowledge/search", window.location.origin);
+      url.searchParams.set("q", query);
+      url.searchParams.set("mode", mode);
+      url.searchParams.set("limit", "10");
+      const payload = await fetchJson(url);
+      renderKnowledgeHits(payload.hits || []);
+      if (!payload.hits?.length) {
+        setKnowledgeStatus(payload.message || "资料中未找到相关内容", "");
+        return;
+      }
+      setKnowledgeStatus(`找到 ${payload.hits.length} 条本班依据。`, "");
+      if (mode === "hybrid") await askWithEvidence(query);
+    } catch (error) {
+      if (error.message === "登录已失效") return;
+      renderKnowledgeHits([]);
+      clearAnswer();
+      const message = error.status === 503
+        ? "向量服务暂不可用，请稍后重试；关键词模式仍可使用。"
+        : error.message;
+      setKnowledgeStatus(message, "error");
+    } finally {
+      knowledgeSubmit.disabled = false;
+    }
   };
 
   const loadMaterials = async (query = searchInput.value.trim()) => {
@@ -149,6 +306,7 @@
     localStorage.setItem("campusclaw-theme", root.dataset.theme);
   });
   searchForm.addEventListener("submit", (event) => { event.preventDefault(); loadMaterials(); });
+  knowledgeForm?.addEventListener("submit", searchKnowledge);
   $(`[data-refresh]`).addEventListener("click", () => loadMaterials());
   uploadDialogButton.addEventListener("click", () => { uploadPanel.hidden = false; uploadPanel.scrollIntoView({ behavior: "smooth", block: "start" }); });
   $(`[data-close-upload]`).addEventListener("click", () => { uploadPanel.hidden = true; });
