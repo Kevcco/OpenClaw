@@ -15,8 +15,8 @@
       </a>
       <div class="top-actions">
         <button class="icon-button" type="button" data-theme-toggle aria-label="切换主题" title="切换主题">◐</button>
-        <span class="identity" data-identity><span class="avatar">{{ user['username'][0]|upper }}</span><span>{{ user['username'] }}<small>身份校验中</small></span></span>
-        <form method="post" action="{{ url_for('auth.logout') }}"><button class="quiet-button" type="submit">退出</button></form>
+        <span class="identity" data-identity><span class="avatar">C</span><span>正在确认身份<small>Token 校验中</small></span></span>
+        <button class="quiet-button" type="button" data-logout>退出</button>
       </div>
     </header>
 
@@ -47,31 +47,38 @@
 
         <div class="toolbar" id="materials">
           <form class="search-form" role="search" data-search-form>
-            <label class="search-box"><span aria-hidden="true">⌕</span><input name="q" type="search" placeholder="搜索材料标题" value="{{ request.args.get('q', '') }}" autocomplete="off"><kbd>⌘ K</kbd></label>
+            <label class="search-box"><span aria-hidden="true">⌕</span><input name="q" type="search" placeholder="搜索材料标题" autocomplete="off"><kbd>⌘ K</kbd></label>
             <button class="quiet-button" type="submit">搜索</button>
           </form>
-          <div class="list-meta"><span data-result-count>{{ materials|length }} 项</span><button class="icon-button refresh-button" type="button" data-refresh aria-label="刷新材料列表" title="刷新">↻</button></div>
+          <div class="list-meta"><span data-result-count>正在加载…</span><button class="icon-button refresh-button" type="button" data-refresh aria-label="刷新材料列表" title="刷新">↻</button></div>
         </div>
 
-        <section class="retrieval-panel" aria-labelledby="retrieval-title">
-          <div class="retrieval-heading"><div><p class="eyebrow">TRACEABLE RETRIEVAL</p><h2 id="retrieval-title">知识库检索</h2><p>只检索当前班级，结果保留材料出处。</p></div></div>
-          <form class="retrieval-form" data-knowledge-search>
-            <label class="search-box retrieval-query"><span aria-hidden="true">⌕</span><input name="query" type="search" placeholder="输入问题或知识点" autocomplete="off" required></label>
-            <label class="retrieval-mode"><span>模式</span><select name="mode"><option value="hybrid">混合检索</option><option value="keyword">关键词</option><option value="vector">向量</option></select></label>
-            <button class="primary-button" type="submit" data-knowledge-submit>检索</button>
-          </form>
-          <div class="retrieval-status" data-knowledge-status role="status" hidden></div>
-          <section class="answer-panel" data-answer-panel hidden aria-live="polite"><p class="eyebrow">ANSWER</p><p data-answer-text></p></section>
-          <div class="retrieval-results" data-knowledge-results aria-live="polite"></div>
+        <section class="knowledge-workspace" aria-label="知识库工具">
+          <section class="retrieval-panel" aria-labelledby="retrieval-title">
+            <div class="retrieval-heading"><div><p class="eyebrow">TRACEABLE RETRIEVAL</p><h2 id="retrieval-title">知识库检索</h2><p>只检索当前班级，结果保留材料出处。</p></div></div>
+            <form class="retrieval-form" data-knowledge-search>
+              <label class="search-box retrieval-query"><span aria-hidden="true">⌕</span><input name="query" type="search" placeholder="输入知识点或检索词" autocomplete="off" required></label>
+              <label class="retrieval-mode"><span>模式</span><select name="mode"><option value="hybrid">混合检索</option><option value="keyword">关键词</option><option value="vector">向量</option></select></label>
+              <button class="primary-button" type="submit" data-knowledge-submit>检索</button>
+            </form>
+            <div class="retrieval-status" data-knowledge-status role="status" hidden></div>
+            <div class="retrieval-results" data-knowledge-results aria-live="polite"></div>
+          </section>
+
+          <section class="retrieval-panel qa-panel" aria-labelledby="answer-title">
+            <div class="retrieval-heading"><div><p class="eyebrow">GROUNDED Q&amp;A</p><h2 id="answer-title">知识问答</h2><p>基于当前班级材料回答，并显示可追溯出处。</p></div></div>
+            <form class="retrieval-form answer-form" data-knowledge-ask>
+              <label class="search-box retrieval-query"><span aria-hidden="true">✦</span><input name="question" type="search" placeholder="向本班知识库提问" autocomplete="off" required></label>
+              <button class="primary-button" type="submit" data-knowledge-ask-submit>提问</button>
+            </form>
+            <div class="retrieval-status" data-answer-status role="status" hidden></div>
+            <section class="answer-panel" data-answer-panel hidden aria-live="polite"><p class="eyebrow">ANSWER</p><p data-answer-text></p></section>
+          </section>
         </section>
 
         <div class="notice" data-notice role="status" hidden></div>
-        <div class="material-list" data-material-list aria-live="polite">
-          {% for material in materials %}
-          <article class="material-row"><span class="file-icon">▤</span><div class="material-main"><button class="material-title" type="button" data-preview-id="{{ material['id'] }}">{{ material['title'] }}</button><div class="material-meta"><span>{{ material['created_at'] }}</span><span class="file-tag">MATERIAL</span></div></div><div class="row-actions"><button type="button" data-preview-id="{{ material['id'] }}">预览</button><a href="{{ url_for('materials.material_download', material_id=material['id']) }}">下载</a></div></article>
-          {% endfor %}
-        </div>
-        <div class="empty-state" data-empty-state {% if materials %}hidden{% endif %}><span class="empty-icon">▤</span><h2>还没有找到材料</h2><p>试试其他关键词，或稍后再查看。</p></div>
+        <div class="material-list" data-material-list aria-live="polite"></div>
+        <div class="empty-state" data-empty-state hidden><span class="empty-icon">▤</span><h2>还没有找到材料</h2><p>试试其他关键词，或稍后再查看。</p></div>
         <footer class="workspace-footer"><span>CampusClaw · 教研材料库</span><span>仅显示当前班级内容</span></footer>
       </section>
     </main>

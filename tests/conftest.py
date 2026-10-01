@@ -10,7 +10,8 @@ def app(tmp_path):
     return create_app(
         {
             "TESTING": True,
-            "SECRET_KEY": "test-secret-key",
+            "TOKEN_HASH_SECRET": "test-token-hash-secret",
+            "ACCESS_TOKEN_TTL_SECONDS": 28800,
             "DATABASE_PATH": str(database_path),
             "UPLOAD_DIR": str(upload_dir),
         }

@@ -88,7 +88,8 @@ def ask():
     except retrieval.RetrievalUnavailable as error:
         return jsonify({"error": str(error)}), 503
 
-    if not result["hits"]:
+    hits = result["hits"][:4]
+    if not hits:
         return jsonify({"answer": retrieval.NOT_FOUND_MESSAGE, "citations": []})
 
     provider = current_app.extensions.get("answer_provider")
@@ -100,7 +101,7 @@ def ask():
             "chunk_index": row["chunk_index"],
             "chunk_text": row["chunk_text"],
         }
-        for row, _score, _modes in result["hits"]
+        for row, _score, _modes in hits
     ]
     try:
         answer_text = provider.answer(question, contexts, history)
@@ -111,7 +112,7 @@ def ask():
         return jsonify({"error": str(error) or "answer service is unavailable"}), 503
     citations = []
     for reference in references:
-        row, score, modes = result["hits"][reference - 1]
+        row, score, modes = hits[reference - 1]
         citation = hit_json(row, score, modes)
         citation["index"] = reference
         citations.append(citation)

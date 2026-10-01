@@ -22,6 +22,15 @@ CREATE TABLE IF NOT EXISTS users (
     class_id INTEGER NOT NULL REFERENCES classes(id)
 );
 
+CREATE TABLE IF NOT EXISTS auth_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_hash TEXT NOT NULL UNIQUE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    issued_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    revoked_at INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS lectures (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -96,6 +105,9 @@ CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_class_id ON users(class_id);
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_hash ON auth_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_user_id ON auth_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_expiry ON auth_tokens(expires_at, revoked_at);
 CREATE INDEX IF NOT EXISTS idx_materials_class_id ON materials(class_id);
 CREATE INDEX IF NOT EXISTS idx_knowledge_entries_class_id ON knowledge_entries(class_id);
 CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_material_id ON knowledge_chunks(material_id);

@@ -10,6 +10,8 @@ def create_app(test_config=None):
     app.config.from_mapping(
         DATABASE_PATH=os.getenv("DATABASE_PATH", str(project_root / "data" / "app.db")),
         UPLOAD_DIR=os.getenv("UPLOAD_DIR", str(project_root / "uploads")),
+        TOKEN_HASH_SECRET=os.getenv("TOKEN_HASH_SECRET"),
+        ACCESS_TOKEN_TTL_SECONDS=os.getenv("ACCESS_TOKEN_TTL_SECONDS", "28800"),
         MAX_CONTENT_LENGTH=5 * 1024 * 1024,
         QDRANT_URL=os.getenv("QDRANT_URL"),
         QDRANT_COLLECTION=os.getenv("QDRANT_COLLECTION", "campusclaw_chunks"),
@@ -21,6 +23,8 @@ def create_app(test_config=None):
         VECTOR_STORE_MODE=os.getenv("VECTOR_STORE_MODE"),
         ANSWER_MODE=os.getenv("ANSWER_MODE", "extractive"),
         ANSWER_API_URL=os.getenv("ANSWER_API_URL"),
+        ANSWER_API_BASE_URL=os.getenv("ANSWER_API_BASE_URL"),
+        ANSWER_MODEL=os.getenv("ANSWER_MODEL"),
         ANSWER_API_KEY=os.getenv("ANSWER_API_KEY"),
         ANSWER_TIMEOUT=float(os.getenv("ANSWER_TIMEOUT", "20")),
     )
@@ -28,12 +32,17 @@ def create_app(test_config=None):
     if test_config is not None:
         app.config.update(test_config)
 
-    secret_key = app.config.get("SECRET_KEY") or os.getenv("SECRET_KEY")
-    if not secret_key:
-        raise RuntimeError("SECRET_KEY must be provided by the environment")
-    app.config["SECRET_KEY"] = secret_key
-    app.config["SESSION_COOKIE_HTTPONLY"] = True
-    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    token_hash_secret = app.config.get("TOKEN_HASH_SECRET")
+    if not token_hash_secret:
+        raise RuntimeError("TOKEN_HASH_SECRET must be provided by the environment")
+    app.config["TOKEN_HASH_SECRET"] = token_hash_secret
+    try:
+        token_ttl = int(app.config.get("ACCESS_TOKEN_TTL_SECONDS", 28800))
+    except (TypeError, ValueError) as error:
+        raise RuntimeError("ACCESS_TOKEN_TTL_SECONDS must be a positive integer") from error
+    if token_ttl <= 0:
+        raise RuntimeError("ACCESS_TOKEN_TTL_SECONDS must be a positive integer")
+    app.config["ACCESS_TOKEN_TTL_SECONDS"] = token_ttl
 
     from .auth import bp as auth_bp
     from .materials import bp as materials_bp

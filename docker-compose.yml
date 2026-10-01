@@ -20,6 +20,8 @@ services:
     environment:
       DATABASE_PATH: /app/data/app.db
       UPLOAD_DIR: /app/uploads
+      TOKEN_HASH_SECRET: ${TOKEN_HASH_SECRET:?TOKEN_HASH_SECRET must be set}
+      ACCESS_TOKEN_TTL_SECONDS: ${ACCESS_TOKEN_TTL_SECONDS:-28800}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
       QDRANT_COLLECTION: ${QDRANT_COLLECTION:-campusclaw_chunks}
       QDRANT_WAIT_SECONDS: ${QDRANT_WAIT_SECONDS:-30}

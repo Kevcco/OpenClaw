@@ -18,8 +18,13 @@
   const knowledgeSubmit = $(`[data-knowledge-submit]`);
   const knowledgeStatus = $(`[data-knowledge-status]`);
   const knowledgeResults = $(`[data-knowledge-results]`);
+  const answerForm = $(`[data-knowledge-ask]`);
+  const answerQuestion = answerForm?.elements.question;
+  const answerSubmit = $(`[data-knowledge-ask-submit]`);
+  const answerStatus = $(`[data-answer-status]`);
   const answerPanel = $(`[data-answer-panel]`);
   const answerText = $(`[data-answer-text]`);
+  const tokenStorageKey = "campusclaw-access-token";
   let user = null;
   let activeIndex = 0;
 
@@ -29,10 +34,20 @@
     notice.hidden = !message;
   };
 
+  const getToken = () => sessionStorage.getItem(tokenStorageKey);
+
+  const redirectToLogin = () => {
+    sessionStorage.removeItem(tokenStorageKey);
+    window.location.assign("/login");
+  };
+
   const fetchJson = async (url, options = {}) => {
-    const response = await fetch(url, { credentials: "same-origin", ...options });
+    const headers = new Headers(options.headers || {});
+    const token = getToken();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const response = await fetch(url, { ...options, headers, credentials: "omit" });
     if (response.status === 401) {
-      window.location.assign("/login");
+      redirectToLogin();
       throw new Error("登录已失效");
     }
     const payload = await response.json().catch(() => ({}));
@@ -42,6 +57,33 @@
       throw error;
     }
     return payload;
+  };
+
+  const downloadMaterial = async (url) => {
+    const token = getToken();
+    const headers = new Headers();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const response = await fetch(url, { headers, credentials: "omit" });
+    if (response.status === 401) {
+      redirectToLogin();
+      throw new Error("登录已失效");
+    }
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || `下载失败 (${response.status})`);
+    }
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    const disposition = response.headers.get("Content-Disposition") || "";
+    const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+    const plainName = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+    link.download = encodedName ? decodeURIComponent(encodedName) : (plainName || "material");
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
   };
 
   const loadIdentity = async () => {
@@ -94,6 +136,10 @@
     const download = document.createElement("a");
     download.href = `/api/materials/${material.id}/download`;
     download.textContent = "下载";
+    download.addEventListener("click", (event) => {
+      event.preventDefault();
+      downloadMaterial(download.href).catch((error) => setNotice(error.message, true));
+    });
     actions.append(preview, download);
     row.append(icon, main, actions);
     return row;
@@ -104,6 +150,13 @@
     knowledgeStatus.className = "retrieval-status";
     if (state) knowledgeStatus.classList.add(state);
     knowledgeStatus.hidden = !message;
+  };
+
+  const setAnswerStatus = (message, state = "") => {
+    answerStatus.textContent = message;
+    answerStatus.className = "retrieval-status";
+    if (state) answerStatus.classList.add(state);
+    answerStatus.hidden = !message;
   };
 
   const clearAnswer = () => {
@@ -155,6 +208,10 @@
       const download = document.createElement("a");
       download.href = source.download_url;
       download.textContent = "下载原文件";
+      download.addEventListener("click", (event) => {
+        event.preventDefault();
+        downloadMaterial(download.href).catch((error) => setKnowledgeStatus(error.message, "error"));
+      });
       links.append(download);
     }
     card.append(head, meta, snippet, links);
@@ -187,35 +244,17 @@
     answerPanel.hidden = false;
   };
 
-  const askWithEvidence = async (question) => {
-    try {
-      const payload = await fetchJson("/api/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
-      });
-      renderAnswer(payload);
-      setKnowledgeStatus("已根据本班材料生成回答。", "");
-    } catch (error) {
-      if (error.message === "登录已失效") throw error;
-      clearAnswer();
-      setKnowledgeStatus(`检索成功，但回答失败：${error.message}`, "error");
-    }
-  };
-
   const searchKnowledge = async (event) => {
     event.preventDefault();
     const query = knowledgeQuery.value.trim();
     const mode = knowledgeMode.value;
     if (!query) {
       renderKnowledgeHits([]);
-      clearAnswer();
       setKnowledgeStatus("请输入问题或知识点。", "error");
       knowledgeQuery.focus();
       return;
     }
     knowledgeSubmit.disabled = true;
-    clearAnswer();
     renderKnowledgeHits([]);
     setKnowledgeStatus("正在检索本班知识库…", "loading");
     try {
@@ -230,17 +269,47 @@
         return;
       }
       setKnowledgeStatus(`找到 ${payload.hits.length} 条本班依据。`, "");
-      if (mode === "hybrid") await askWithEvidence(query);
     } catch (error) {
       if (error.message === "登录已失效") return;
       renderKnowledgeHits([]);
-      clearAnswer();
       const message = error.status === 503
         ? "向量服务暂不可用，请稍后重试；关键词模式仍可使用。"
         : error.message;
       setKnowledgeStatus(message, "error");
     } finally {
       knowledgeSubmit.disabled = false;
+    }
+  };
+
+  const askKnowledge = async (event) => {
+    event.preventDefault();
+    const question = answerQuestion.value.trim();
+    if (!question) {
+      clearAnswer();
+      setAnswerStatus("请输入要询问的问题。", "error");
+      answerQuestion.focus();
+      return;
+    }
+    answerSubmit.disabled = true;
+    clearAnswer();
+    setAnswerStatus("正在根据本班材料生成回答…", "loading");
+    try {
+      const payload = await fetchJson("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+      renderAnswer(payload);
+      setAnswerStatus(
+        payload.citations?.length ? "回答已生成，出处见下方。" : "资料中未找到相关依据。",
+        "",
+      );
+    } catch (error) {
+      if (error.message === "登录已失效") return;
+      clearAnswer();
+      setAnswerStatus(`问答失败：${error.message}`, "error");
+    } finally {
+      answerSubmit.disabled = false;
     }
   };
 
@@ -263,6 +332,17 @@
     } catch (error) {
       if (error.message !== "登录已失效") setNotice(error.message, true);
       resultCount.textContent = "加载失败";
+    }
+  };
+
+  const logout = async () => {
+    try {
+      if (getToken()) await fetchJson("/logout", { method: "POST" });
+    } catch (error) {
+      if (error.message !== "登录已失效") setNotice(error.message, true);
+    } finally {
+      sessionStorage.removeItem(tokenStorageKey);
+      window.location.assign("/login");
     }
   };
 
@@ -307,7 +387,9 @@
   });
   searchForm.addEventListener("submit", (event) => { event.preventDefault(); loadMaterials(); });
   knowledgeForm?.addEventListener("submit", searchKnowledge);
+  answerForm?.addEventListener("submit", askKnowledge);
   $(`[data-refresh]`).addEventListener("click", () => loadMaterials());
+  $(`[data-logout]`).addEventListener("click", logout);
   uploadDialogButton.addEventListener("click", () => { uploadPanel.hidden = false; uploadPanel.scrollIntoView({ behavior: "smooth", block: "start" }); });
   $(`[data-close-upload]`).addEventListener("click", () => { uploadPanel.hidden = true; });
   $(`[data-file-name]`).closest("label").querySelector("input[type=file]").addEventListener("change", (event) => {
@@ -339,6 +421,10 @@
   $(`[data-command="theme"]`).addEventListener("click", () => runCommand("theme"));
   $(`[data-command="upload"]`).addEventListener("click", () => runCommand("upload"));
   $(`[data-close-preview]`).addEventListener("click", () => previewDialog.close());
+  $(`[data-download-link]`).addEventListener("click", (event) => {
+    event.preventDefault();
+    downloadMaterial(event.currentTarget.href).catch((error) => setNotice(error.message, true));
+  });
   commandInput.addEventListener("input", () => {
     const query = commandInput.value.trim().toLowerCase();
     commands.forEach((item) => { item.hidden = !item.textContent.toLowerCase().includes(query); });
@@ -357,6 +443,7 @@
     if (event.key === "Escape" && previewDialog.open) previewDialog.close();
   });
 
+  if (document.body.dataset.initialQuery) searchInput.value = document.body.dataset.initialQuery;
   loadIdentity().then(() => loadMaterials(document.body.dataset.initialQuery || "")).catch((error) => {
     if (error.message !== "登录已失效") setNotice("无法确认当前身份，请重新登录。", true);
   });

@@ -30,11 +30,11 @@ def material_json(row):
 
 
 @bp.route("/materials")
-@login_required
 def materials_page():
-    user = current_user()
-    rows = db.list_materials(user["class_id"], request.args.get("q"))
-    return render_template("materials.html", materials=rows, user=user)
+    # Browser navigations cannot attach an Authorization header. Return only a
+    # static application shell here; the workspace loads identity and all
+    # business data through Bearer-protected APIs after it reads sessionStorage.
+    return render_template("materials.html")
 
 
 @bp.route("/api/materials")
