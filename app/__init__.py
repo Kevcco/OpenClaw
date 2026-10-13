@@ -47,6 +47,8 @@ def create_app(test_config=None):
     from .auth import bp as auth_bp
     from .materials import bp as materials_bp
     from .retrieval_routes import bp as retrieval_bp
+    from .assistant_routes import bp as assistant_bp
+    from .openapi_docs import bp as api_docs_bp
     from . import db, indexing
     from .answer import build_answer_provider
     from .vector_store import build_embedding_provider, build_vector_store
@@ -54,6 +56,8 @@ def create_app(test_config=None):
     app.register_blueprint(auth_bp)
     app.register_blueprint(materials_bp)
     app.register_blueprint(retrieval_bp)
+    app.register_blueprint(assistant_bp)
+    app.register_blueprint(api_docs_bp)
     db.init_app(app)
     app.extensions["knowledge_embedding_provider"] = build_embedding_provider(app.config)
     app.extensions["knowledge_vector_store"] = build_vector_store(app.config)

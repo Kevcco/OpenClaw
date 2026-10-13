@@ -172,6 +172,7 @@ def _user_payload(user):
 
 
 @bp.route("/login", methods=("GET", "POST"))
+@bp.route("/api/login", methods=("POST",))
 def login():
     if request.method == "GET":
         return render_template("login.html")

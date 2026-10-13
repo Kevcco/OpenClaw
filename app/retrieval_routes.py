@@ -1,7 +1,7 @@
 from flask import Blueprint, current_app, jsonify, request, url_for
 
 from . import db, retrieval
-from .answer import AnswerProviderError, normalize_citations
+from .answer import AnswerProviderError, answer_with_configuration, normalize_citations
 from .auth import current_user, login_required
 
 
@@ -73,6 +73,10 @@ def ask():
             content = message.get("content")
             if isinstance(content, str) and content.strip():
                 history.append({"role": message["role"], "content": content.strip()})
+    assistant_config = db.get_assistant_config(db.get_db(), user["class_id"])
+    skill = db.get_assistant_skill(db.get_db(), user["class_id"])
+    if assistant_config is None or skill is None:
+        return jsonify({"error": "assistant settings unavailable"}), 503
     try:
         result = retrieval.search(
             db.get_db(),
@@ -104,7 +108,14 @@ def ask():
         for row, _score, _modes in hits
     ]
     try:
-        answer_text = provider.answer(question, contexts, history)
+        answer_text = answer_with_configuration(
+            provider,
+            question,
+            contexts,
+            history,
+            system_prompt=assistant_config["prompt"],
+            skill_instruction=skill["instruction"] if skill["enabled"] else None,
+        )
         if isinstance(answer_text, dict):
             answer_text = answer_text.get("answer", "")
         answer_text, references = normalize_citations(answer_text, len(contexts))

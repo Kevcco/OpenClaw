@@ -2,8 +2,8 @@
 
 - **价值主张**：面向中小学教研场景，把分散的教学材料沉淀为受身份、角色和班级边界保护的知识库基础。
 - **核心场景**：教师和学生登录后查看本班材料，教师可上传教学材料并完成解析入库，学生保持只读。
-- **当前课程范围**：材料上传、班级隔离、可追溯知识库检索和带出处问答。
-- **暂不实现**：技能运行时、作业提交与批改、注册与找回密码、SSO、多校多租户及生产级高可用。
+- **当前课程范围**：材料上传、班级隔离、可追溯知识库检索、带出处问答、教师管理的解题引导提示词/技能、持久化多轮会话与 SSE 流式响应。
+- **暂不实现**：多技能自动选择、工具调用/MCP、作业提交与批改、注册与找回密码、SSO、多校多租户及生产级高可用。
 
 ## 本地开发
 
@@ -61,6 +61,26 @@ python scripts/rebuild_knowledge_index.py --material-id 5 --strategy custom --ma
 Compose 默认使用确定性的 `EMBEDDING_MODE=hash` 和本地 extractive answer provider，适合课程验收。接入真实嵌入网关时，将 `EMBEDDING_MODE=http`、`EMBEDDING_API_URL`、`EMBEDDING_API_KEY` 写入 `.env`。接入 OpenAI-compatible Chat Completions（例如 DeepSeek 兼容接口）时，设置 `ANSWER_MODE=openai-compatible`、`ANSWER_API_BASE_URL`（例如 `https://api.deepseek.com`；程序会追加 `/chat/completions`）、`ANSWER_MODEL`、`ANSWER_API_KEY`，可选设置 `ANSWER_TIMEOUT`；模型名由你的服务账号实际提供的模型决定，不要把真实密钥提交到仓库或发送到浏览器。旧版项目自定义回答网关仍可使用 `ANSWER_MODE=http`、`ANSWER_API_URL`、`ANSWER_API_KEY`。这些密钥只注入应用容器。向量服务或嵌入网关不可用时，`vector`/`hybrid`/`/api/ask` 返回 HTTP 503 并显示可理解状态，`keyword` 不依赖向量服务。
 
 材料工作区将“知识库检索”和“知识问答”分成两个独立面板：检索按钮只调用 `/api/knowledge/search` 并展示切片出处；问答按钮独立调用 `/api/ask` 并展示回答及 citations，不需要先执行检索。两者均只使用当前 Bearer Token 对应班级的数据。
+
+## 第 5 课：提示词、解题引导与流式会话
+
+登录后的 `/materials` 工作区在保留教研材料、知识检索和单次问答的基础上，增加“连续知识问答”：可新建/切换个人会话、查看持久化历史、连续追问并逐段接收回答。学生只能看到自己的会话；班级和用户边界由服务端按 Bearer Token 校验，不能由请求参数覆盖。教师可在工作区维护本班助手提示词并启停“解题引导”技能，学生端不显示管理控件，API 仍独立执行教师权限校验。
+
+每轮会话消息由服务端读取当前班级设置，只按本轮最新问题进行最多 4 个切片的 hybrid 检索，再将已筛选的历史和本班证据交给回答 provider。无检索依据时返回固定的未找到说明和空引用，不调用回答模型。消息保存问题、回答状态、引用以及配置版本；历史不会因后续提示词修改而改写。
+
+- `GET/POST /api/conversations`：列出/创建当前用户会话。
+- `GET/DELETE /api/conversations/<id>`：读取或删除自己的会话及消息。
+- `POST /api/conversations/<id>/messages/stream`：携带 `{ "question": "..." }`，使用 Bearer 头获取 SSE；事件依次为 `start`、一个或多个 `delta`，然后 `done`，生成失败时发送 `error`。完成事件包含 `message_id`、完整 `answer` 和与 `[1]` 编号对应的 `citations`。
+- `GET/PUT /api/assistant/settings` 与 `GET/PATCH /api/assistant/skills/solution-guidance`：教师专用的本班提示词和技能管理接口。
+- `GET /openapi.json` 与 `/swagger/`：机器可读 API 契约和可输入 Bearer Token 的交互式接口页。Swagger 页只调用当前服务，不暴露模型服务密钥。
+
+Compose 服务运行时，可用接口测试脚本核对响应与宿主机映射的 SQLite 状态。默认演示账号可按需通过环境变量替换：`APITEST_BASE_URL`、`APITEST_DATABASE_PATH`、`APITEST_TEACHER_USERNAME/PASSWORD`、`APITEST_STUDENT_A_USERNAME/PASSWORD`、`APITEST_STUDENT_B_USERNAME/PASSWORD`。
+
+```bash
+python3 apitest/run_all.py
+```
+
+每个 API 用例位于 `apitest/cases/<URL路径>/<METHOD>.py`；失败时脚本返回非零，并仍生成 `apitest/reports/index.html` 本地报告（已加入 `.gitignore`）。测试报告不包含访问 Token 或服务端 AI 密钥。真实回答 provider 仍通过应用容器环境变量配置；默认 `ANSWER_MODE=extractive` 用于离线演示，不代表连接了外部 AI 服务。
 
 ## Docker Compose
 

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CampusClaw Swagger UI</title>
+    <style>
+      :root{font:14px/1.5 "Segoe UI","Microsoft YaHei",sans-serif;color:#20312a;background:#f5f8f6}*{box-sizing:border-box}body{margin:0}.top{padding:22px max(20px,calc((100% - 1120px)/2));background:#fff;border-bottom:1px solid #dce8e1}.top h1{margin:0;color:#176b58;font-size:24px}.top p{margin:6px 0 0;color:#60716a}.wrap{max-width:1120px;margin:24px auto;padding:0 18px}.auth{display:flex;gap:10px;align-items:center;background:#fff;padding:14px;border:1px solid #dce8e1;border-radius:8px;margin-bottom:20px}.auth label{font-weight:700;white-space:nowrap}.auth input{height:38px;flex:1;min-width:0;padding:0 10px;border:1px solid #bccdc4;border-radius:5px}.hint{font-size:12px;color:#61736b}.group{margin:22px 0}.group h2{font-size:18px}.op{background:#fff;border:1px solid #dce8e1;border-radius:7px;margin:9px 0;overflow:hidden}.op summary{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer}.method{min-width:64px;text-align:center;padding:4px 7px;border-radius:4px;color:#fff;font-size:11px;font-weight:700}.GET{background:#3285c2}.POST{background:#3c9d69}.PUT{background:#bd8a22}.PATCH{background:#8d5cc0}.DELETE{background:#c14b4b}.path{font:13px ui-monospace,monospace;font-weight:700}.summary{color:#54665e;margin-left:auto}.detail{border-top:1px solid #e5eee9;padding:16px}.description{margin:0 0 13px;color:#52645c}.field{display:grid;grid-template-columns:180px minmax(0,1fr);gap:9px;align-items:center;margin:9px 0}.field label{font-size:12px;font-weight:600}.field input,.field textarea{width:100%;padding:8px;border:1px solid #c7d5ce;border-radius:5px;background:#fff;color:#20312a}.field textarea{min-height:110px;font:12px/1.5 ui-monospace,monospace;resize:vertical}.try{margin-top:12px;border:0;border-radius:5px;padding:9px 14px;background:#176b58;color:#fff;font-weight:700;cursor:pointer}.try:disabled{opacity:.6}.result{margin-top:13px;padding:12px;background:#17231e;color:#e1f5e9;border-radius:5px;white-space:pre-wrap;overflow:auto;max-height:360px;font:12px/1.55 ui-monospace,monospace}.footer{margin:30px 0;color:#718078;font-size:12px}.footer a{color:#176b58}@media(max-width:640px){.auth{align-items:stretch;flex-direction:column}.field{grid-template-columns:1fr}.summary{display:none}.top{padding:18px}}
+    </style>
+    <script src="{{ url_for('static', filename='swagger.js') }}" defer></script>
+  </head>
+  <body>
+    <header class="top">
+      <h1>CampusClaw API · Swagger UI</h1>
+      <p>OpenAPI 3.1 · 当前服务 · 受保护接口使用不透明 Bearer Token</p>
+    </header>
+    <main class="wrap">
+      <section class="auth">
+        <label for="bearer-token">Authorize · Bearer Token</label>
+        <input id="bearer-token" type="password" autocomplete="off" placeholder="粘贴登录后返回的 access_token；仅保存在当前页面内存">
+        <span class="hint">不要在共享电脑粘贴真实 Token；此页不会写入 Cookie、URL 或 localStorage。</span>
+      </section>
+      <div id="api-operations" aria-live="polite">正在加载 OpenAPI 描述…</div>
+      <p class="footer">OpenAPI JSON：<a href="/openapi.json">/openapi.json</a> · 页面只通过当前服务发起请求。</p>
+    </main>
+  </body>
+</html>

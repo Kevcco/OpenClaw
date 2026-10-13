@@ -6,6 +6,7 @@
     <meta name="color-scheme" content="light dark">
     <title>教研材料 · CampusClaw</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assistant-settings.css') }}">
     <script src="{{ url_for('static', filename='workspace.js') }}" defer></script>
   </head>
   <body class="workspace-page" data-initial-query="{{ request.args.get('q', '') }}">
@@ -73,6 +74,45 @@
             </form>
             <div class="retrieval-status" data-answer-status role="status" hidden></div>
             <section class="answer-panel" data-answer-panel hidden aria-live="polite"><p class="eyebrow">ANSWER</p><p data-answer-text></p></section>
+          </section>
+
+          <section class="retrieval-panel assistant-panel" data-assistant-workspace aria-labelledby="assistant-title">
+            <div class="assistant-heading">
+              <div><p class="eyebrow">GUIDED SOLUTION · MULTI-TURN</p><h2 id="assistant-title">连续知识问答</h2><p>每轮回答都检索当前班级材料，可在同一会话中继续追问。</p></div>
+              <button class="primary-button" type="button" data-new-conversation>＋ 新建会话</button>
+            </div>
+            <div class="assistant-layout">
+              <aside class="conversation-rail" aria-label="我的会话">
+                <p class="conversation-rail-title">我的会话</p>
+                <div class="conversation-list" data-conversation-list aria-live="polite"></div>
+              </aside>
+              <section class="conversation-main" aria-label="对话内容">
+                <div class="conversation-empty" data-conversation-empty>新建或选择一个会话，开始基于本班知识库提问。</div>
+                <div class="conversation-messages" data-conversation-messages aria-live="polite" aria-relevant="additions text"></div>
+                <div class="assistant-status" data-conversation-status role="status" hidden></div>
+                <form class="conversation-form" data-conversation-form hidden>
+                  <label class="sr-only" for="conversation-question">向知识助手提问</label>
+                  <textarea id="conversation-question" name="question" rows="2" maxlength="4000" placeholder="输入问题或继续追问…" required></textarea>
+                  <button class="primary-button" type="submit" data-conversation-submit>发送</button>
+                </form>
+              </section>
+            </div>
+            <details class="assistant-settings" data-assistant-settings hidden>
+              <summary>教师设置 · 助手提示词与技能配置</summary>
+              <section class="assistant-skill-settings" aria-labelledby="solution-guidance-title">
+                <div class="assistant-skill-heading">
+                  <div><h3 id="solution-guidance-title">技能配置</h3><p>独立控制助手是否启用解题引导能力，不需要修改系统提示词。</p></div>
+                  <label class="skill-toggle"><input type="checkbox" data-solution-guidance><span><strong>启用“解题引导”</strong><small>启用时提供思路和步骤，不直接给出最终答案。</small></span></label>
+                </div>
+              </section>
+              <form data-assistant-prompt-form>
+                <h3>提示词配置</h3>
+                <p class="assistant-settings-description">提示词用于设置助手身份、回答边界和表达风格；技能开关请在上方单独设置。</p>
+                <label class="field-label" for="assistant-prompt">班级助手提示词 <span>最多 6000 字</span></label>
+                <textarea id="assistant-prompt" name="prompt" maxlength="6000" rows="4" data-assistant-prompt required></textarea>
+                <div class="assistant-settings-actions"><button class="primary-button" type="submit" data-save-assistant-prompt>保存提示词</button><span class="assistant-status" data-assistant-settings-status role="status"></span></div>
+              </form>
+            </details>
           </section>
         </section>
 

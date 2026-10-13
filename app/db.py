@@ -1,4 +1,5 @@
 import hashlib
+import json
 import sqlite3
 from pathlib import Path
 
@@ -59,6 +60,49 @@ CREATE TABLE IF NOT EXISTS skills (
     UNIQUE (class_id, name)
 );
 
+CREATE TABLE IF NOT EXISTS assistant_configs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    class_id INTEGER NOT NULL UNIQUE REFERENCES classes(id) ON DELETE CASCADE,
+    prompt TEXT NOT NULL,
+    prompt_version INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS assistant_skills (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    skill_key TEXT NOT NULL,
+    name TEXT NOT NULL,
+    instruction TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+    version INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (class_id, skill_key)
+);
+
+CREATE TABLE IF NOT EXISTS conversations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS conversation_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+    content TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'complete' CHECK (status IN ('pending', 'streaming', 'complete', 'failed')),
+    citations_json TEXT NOT NULL DEFAULT '[]',
+    prompt_version INTEGER,
+    skill_version INTEGER,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS materials (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -113,6 +157,9 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_entries_class_id ON knowledge_entries(c
 CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_material_id ON knowledge_chunks(material_id);
 CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_class_status ON knowledge_chunks(class_id, index_status);
 CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_entry_id ON knowledge_chunks(knowledge_entry_id);
+CREATE INDEX IF NOT EXISTS idx_assistant_skills_class ON assistant_skills(class_id, skill_key);
+CREATE INDEX IF NOT EXISTS idx_conversations_owner_class ON conversations(owner_user_id, class_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_conversation_messages_conversation ON conversation_messages(conversation_id, owner_user_id, class_id, id);
 """
 
 SEED_CREDENTIALS = {
@@ -181,6 +228,27 @@ def seed_data(connection, upload_dir):
         [("A班",), ("B班",)],
     )
     class_ids = _class_ids(connection)
+    assistant_prompt = (
+        "你是 CampusClaw 的学习助手。请用清晰、耐心的中文回应学生，优先帮助学生理解问题。"
+        "事实性回答必须以本轮检索到的本班材料为依据；依据不足时要明确说明。"
+    )
+    solution_guidance = (
+        "不要直接给出题目的最终答案。先指出可用的概念或条件，再分步骤提示学生如何推理，"
+        "鼓励学生完成计算并自行检查；引用本班材料的标题和切片位置。"
+    )
+    for class_id in class_ids.values():
+        connection.execute(
+            "INSERT OR IGNORE INTO assistant_configs (class_id, prompt) VALUES (?, ?)",
+            (class_id, assistant_prompt),
+        )
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO assistant_skills
+                (class_id, skill_key, name, instruction, enabled)
+            VALUES (?, 'solution-guidance', '解题引导', ?, 1)
+            """,
+            (class_id, solution_guidance),
+        )
     users = [
         ("teacher_a", "teacher", class_ids["A班"]),
         ("student_a1", "student", class_ids["A班"]),
@@ -242,6 +310,143 @@ def seed_data(connection, upload_dir):
             (material["id"], class_id, body_text),
         )
     connection.commit()
+
+
+def get_assistant_config(connection, class_id):
+    return connection.execute(
+        "SELECT * FROM assistant_configs WHERE class_id = ?", (class_id,)
+    ).fetchone()
+
+
+def update_assistant_prompt(connection, class_id, prompt):
+    connection.execute(
+        """
+        UPDATE assistant_configs
+        SET prompt = ?, prompt_version = prompt_version + 1, updated_at = CURRENT_TIMESTAMP
+        WHERE class_id = ?
+        """,
+        (prompt, class_id),
+    )
+    connection.commit()
+    return get_assistant_config(connection, class_id)
+
+
+def get_assistant_skill(connection, class_id, skill_key="solution-guidance"):
+    return connection.execute(
+        "SELECT * FROM assistant_skills WHERE class_id = ? AND skill_key = ?",
+        (class_id, skill_key),
+    ).fetchone()
+
+
+def update_assistant_skill(connection, class_id, enabled, skill_key="solution-guidance"):
+    connection.execute(
+        """
+        UPDATE assistant_skills
+        SET enabled = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP
+        WHERE class_id = ? AND skill_key = ?
+        """,
+        (int(bool(enabled)), class_id, skill_key),
+    )
+    connection.commit()
+    return get_assistant_skill(connection, class_id, skill_key)
+
+
+def create_conversation(connection, owner_user_id, class_id, title):
+    cursor = connection.execute(
+        "INSERT INTO conversations (owner_user_id, class_id, title) VALUES (?, ?, ?)",
+        (owner_user_id, class_id, title),
+    )
+    connection.commit()
+    return get_conversation(connection, cursor.lastrowid, owner_user_id, class_id)
+
+
+def list_conversations(connection, owner_user_id, class_id, limit=50):
+    return connection.execute(
+        """
+        SELECT * FROM conversations
+        WHERE owner_user_id = ? AND class_id = ?
+        ORDER BY updated_at DESC, id DESC LIMIT ?
+        """,
+        (owner_user_id, class_id, limit),
+    ).fetchall()
+
+
+def get_conversation(connection, conversation_id, owner_user_id, class_id):
+    return connection.execute(
+        """
+        SELECT * FROM conversations
+        WHERE id = ? AND owner_user_id = ? AND class_id = ?
+        """,
+        (conversation_id, owner_user_id, class_id),
+    ).fetchone()
+
+
+def list_conversation_messages(connection, conversation_id, owner_user_id, class_id):
+    return connection.execute(
+        """
+        SELECT * FROM conversation_messages
+        WHERE conversation_id = ? AND owner_user_id = ? AND class_id = ?
+        ORDER BY id
+        """,
+        (conversation_id, owner_user_id, class_id),
+    ).fetchall()
+
+
+def create_conversation_turn(
+    connection, *, conversation_id, owner_user_id, class_id, question,
+    prompt_version, skill_version,
+):
+    user_cursor = connection.execute(
+        """
+        INSERT INTO conversation_messages
+            (conversation_id, owner_user_id, class_id, role, content, status)
+        VALUES (?, ?, ?, 'user', ?, 'complete')
+        """,
+        (conversation_id, owner_user_id, class_id, question),
+    )
+    assistant_cursor = connection.execute(
+        """
+        INSERT INTO conversation_messages
+            (conversation_id, owner_user_id, class_id, role, content, status,
+             prompt_version, skill_version)
+        VALUES (?, ?, ?, 'assistant', '', 'pending', ?, ?)
+        """,
+        (conversation_id, owner_user_id, class_id, prompt_version, skill_version),
+    )
+    connection.execute(
+        "UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ? AND owner_user_id = ? AND class_id = ?",
+        (conversation_id, owner_user_id, class_id),
+    )
+    connection.commit()
+    return user_cursor.lastrowid, assistant_cursor.lastrowid
+
+
+def update_conversation_message(connection, message_id, owner_user_id, class_id, *, content, status, citations=None):
+    connection.execute(
+        """
+        UPDATE conversation_messages
+        SET content = ?, status = ?, citations_json = ?
+        WHERE id = ? AND owner_user_id = ? AND class_id = ? AND role = 'assistant'
+        """,
+        (
+            content,
+            status,
+            json.dumps(citations or [], ensure_ascii=False),
+            message_id,
+            owner_user_id,
+            class_id,
+        ),
+    )
+    connection.commit()
+
+
+def delete_conversation(connection, conversation_id, owner_user_id, class_id):
+    cursor = connection.execute(
+        "DELETE FROM conversations WHERE id = ? AND owner_user_id = ? AND class_id = ?",
+        (conversation_id, owner_user_id, class_id),
+    )
+    connection.commit()
+    return cursor.rowcount > 0
 
 
 def list_materials(class_id, search=None):

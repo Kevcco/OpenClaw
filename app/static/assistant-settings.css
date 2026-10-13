@@ -1,0 +1,110 @@
+.assistant-settings summary {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.assistant-settings form {
+  margin-top: 16px;
+}
+
+.assistant-settings h3 {
+  margin: 0 0 9px;
+  font-size: 13px;
+}
+
+.assistant-settings-description,
+.assistant-skill-heading p {
+  margin: 0 0 11px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.assistant-settings textarea {
+  display: block;
+  margin-top: 7px;
+}
+
+.assistant-settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 9px;
+}
+
+.assistant-settings-actions .primary-button {
+  min-height: 34px;
+}
+
+.assistant-skill-settings {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.assistant-skill-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.assistant-skill-heading h3 {
+  margin: 0 0 5px;
+}
+
+.assistant-skill-heading p {
+  margin: 0;
+}
+
+.assistant-skill-heading .skill-toggle {
+  flex: none;
+  min-width: min(360px, 55%);
+  margin: 0;
+  background: var(--surface);
+}
+
+.skill-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 15px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.skill-toggle input {
+  margin-top: 3px;
+  accent-color: var(--green);
+}
+
+.skill-toggle span {
+  display: grid;
+  gap: 4px;
+}
+
+.skill-toggle strong {
+  font-size: 11px;
+}
+
+.skill-toggle small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+@media (max-width: 760px) {
+  .assistant-skill-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .assistant-skill-heading .skill-toggle {
+    min-width: 0;
+  }
+}

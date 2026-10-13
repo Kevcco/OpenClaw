@@ -24,9 +24,25 @@
   const answerStatus = $(`[data-answer-status]`);
   const answerPanel = $(`[data-answer-panel]`);
   const answerText = $(`[data-answer-text]`);
+  const conversationList = $(`[data-conversation-list]`);
+  const conversationMessages = $(`[data-conversation-messages]`);
+  const conversationEmpty = $(`[data-conversation-empty]`);
+  const conversationForm = $(`[data-conversation-form]`);
+  const conversationQuestion = conversationForm.elements.question;
+  const conversationSubmit = $(`[data-conversation-submit]`);
+  const conversationStatus = $(`[data-conversation-status]`);
+  const newConversationButton = $(`[data-new-conversation]`);
+  const teacherSettings = $(`[data-assistant-settings]`);
+  const assistantPromptForm = $(`[data-assistant-prompt-form]`);
+  const assistantPrompt = $(`[data-assistant-prompt]`);
+  const assistantSettingsStatus = $(`[data-assistant-settings-status]`);
+  const solutionGuidanceToggle = $(`[data-solution-guidance]`);
   const tokenStorageKey = "campusclaw-access-token";
   let user = null;
   let activeIndex = 0;
+  let activeConversationId = null;
+  let conversationRows = [];
+  let conversationStreaming = false;
 
   const setNotice = (message, error = false) => {
     notice.textContent = message;
@@ -90,7 +106,7 @@
     user = await fetchJson("/api/me");
     const identity = $(`[data-identity]`);
     identity.querySelector(".avatar").textContent = user.username.slice(0, 1).toUpperCase();
-    identity.querySelector("span:last-child").innerHTML = "";
+    identity.querySelector("span:last-child").replaceChildren();
     const label = document.createElement("span");
     label.textContent = user.username;
     const role = document.createElement("small");
@@ -102,6 +118,8 @@
     if (user.role === "teacher") {
       uploadDialogButton.hidden = false;
       $(`[data-teacher-command]`).hidden = false;
+      teacherSettings.hidden = false;
+      teacherSettings.open = true;
     }
   };
 
@@ -242,6 +260,331 @@
     }
     answerPanel.replaceChildren(...nodes);
     answerPanel.hidden = false;
+  };
+
+  const setConversationStatus = (message, state = "") => {
+    conversationStatus.textContent = message;
+    conversationStatus.className = "assistant-status";
+    if (state) conversationStatus.classList.add(state);
+    conversationStatus.hidden = !message;
+  };
+
+  const setAssistantSettingsStatus = (message, state = "") => {
+    assistantSettingsStatus.textContent = message;
+    assistantSettingsStatus.className = "assistant-status";
+    if (state) assistantSettingsStatus.classList.add(state);
+  };
+
+  const addMessageCitations = (article, citations) => {
+    article.querySelector(".message-citations")?.remove();
+    if (!Array.isArray(citations) || !citations.length) return;
+    const list = document.createElement("ol");
+    list.className = "message-citations";
+    citations.forEach((citation) => {
+      const item = document.createElement("li");
+      const source = citation.source || {};
+      const label = `[${citation.index ?? "?"}] ${source.title || "未命名材料"} · 切片 ${source.chunk_index ?? "-"}`;
+      if (source.material_id != null) {
+        const link = document.createElement("button");
+        link.type = "button";
+        link.textContent = label;
+        link.addEventListener("click", () => openPreview(source.material_id));
+        item.append(link);
+      } else {
+        item.textContent = label;
+      }
+      list.append(item);
+    });
+    article.append(list);
+  };
+
+  const makeConversationMessage = (message) => {
+    const article = document.createElement("article");
+    article.className = `conversation-message ${message.role === "assistant" ? "assistant" : "user"}`;
+    const header = document.createElement("div");
+    header.className = "message-header";
+    const role = document.createElement("strong");
+    role.textContent = message.role === "assistant" ? "CampusClaw 助手" : "我";
+    const state = document.createElement("span");
+    state.className = "message-state";
+    if (message.role === "assistant" && message.status && message.status !== "complete") {
+      state.textContent = message.status === "failed" ? "回答失败" : "处理中断";
+      state.classList.add("error");
+    } else if (message.created_at) {
+      state.textContent = message.created_at;
+    }
+    header.append(role, state);
+    const body = document.createElement("div");
+    body.className = "message-content";
+    body.textContent = message.content || "";
+    article.append(header, body);
+    if (message.role === "assistant") addMessageCitations(article, message.citations);
+    return { article, body, state };
+  };
+
+  const renderConversationMessages = (messages) => {
+    conversationMessages.replaceChildren();
+    (messages || []).forEach((message) => {
+      conversationMessages.append(makeConversationMessage(message).article);
+    });
+    conversationMessages.scrollTop = conversationMessages.scrollHeight;
+  };
+
+  const renderConversationList = () => {
+    conversationList.replaceChildren();
+    conversationRows.forEach((conversation) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "conversation-choice";
+      button.classList.toggle("active", conversation.id === activeConversationId);
+      button.setAttribute("aria-pressed", String(conversation.id === activeConversationId));
+      const title = document.createElement("span");
+      title.textContent = conversation.title;
+      const date = document.createElement("small");
+      date.textContent = conversation.updated_at || conversation.created_at || "";
+      button.append(title, date);
+      button.addEventListener("click", () => loadConversation(conversation.id));
+      conversationList.append(button);
+    });
+  };
+
+  const loadConversation = async (conversationId) => {
+    activeConversationId = conversationId;
+    renderConversationList();
+    conversationEmpty.hidden = true;
+    conversationForm.hidden = false;
+    conversationMessages.replaceChildren();
+    setConversationStatus("正在读取会话…", "loading");
+    try {
+      const payload = await fetchJson(`/api/conversations/${conversationId}`);
+      renderConversationMessages(payload.messages || []);
+      setConversationStatus("");
+    } catch (error) {
+      if (error.message === "登录已失效") return;
+      conversationEmpty.hidden = false;
+      conversationEmpty.textContent = error.status === 404
+        ? "该会话不存在或你没有查看权限。"
+        : `读取会话失败：${error.message}`;
+      conversationForm.hidden = true;
+      setConversationStatus(error.status === 404 ? "会话不可见" : "无法读取会话", "error");
+    }
+  };
+
+  const loadConversations = async (preferredId = activeConversationId) => {
+    try {
+      const payload = await fetchJson("/api/conversations?limit=100");
+      conversationRows = payload.conversations || [];
+      const preferred = conversationRows.find((row) => row.id === preferredId);
+      const selected = preferred || conversationRows[0];
+      if (!selected) {
+        activeConversationId = null;
+        renderConversationList();
+        renderConversationMessages([]);
+        conversationForm.hidden = true;
+        conversationEmpty.hidden = false;
+        setConversationStatus("");
+        return;
+      }
+      await loadConversation(selected.id);
+    } catch (error) {
+      if (error.message !== "登录已失效") {
+        setConversationStatus(`无法加载会话：${error.message}`, "error");
+      }
+    }
+  };
+
+  const createConversation = async () => {
+    newConversationButton.disabled = true;
+    setConversationStatus("正在创建会话…", "loading");
+    try {
+      const payload = await fetchJson("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "新对话" }),
+      });
+      await loadConversations(payload.conversation.id);
+      conversationQuestion.focus();
+    } catch (error) {
+      if (error.message !== "登录已失效") setConversationStatus(`创建会话失败：${error.message}`, "error");
+    } finally {
+      newConversationButton.disabled = false;
+    }
+  };
+
+  const handleSseBlock = (block, handlers) => {
+    let eventName = "message";
+    const data = [];
+    for (const line of block.replace(/\r\n/g, "\n").split("\n")) {
+      if (line.startsWith("event:")) eventName = line.slice(6).trim();
+      else if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
+    }
+    if (!data.length) return;
+    const payload = JSON.parse(data.join("\n"));
+    handlers[eventName]?.(payload);
+  };
+
+  const sendConversationMessage = async (event) => {
+    event.preventDefault();
+    const question = conversationQuestion.value.trim();
+    if (!question || !activeConversationId || conversationStreaming) return;
+    const targetConversationId = activeConversationId;
+    const userMessage = makeConversationMessage({ role: "user", content: question });
+    const assistantMessage = makeConversationMessage({ role: "assistant", content: "", status: "streaming" });
+    conversationMessages.append(userMessage.article, assistantMessage.article);
+    conversationMessages.scrollTop = conversationMessages.scrollHeight;
+    conversationQuestion.value = "";
+    conversationStreaming = true;
+    conversationSubmit.disabled = true;
+    newConversationButton.disabled = true;
+    setConversationStatus("正在检索本班资料并生成回答…", "loading");
+
+    let completed = false;
+    let streamErrored = false;
+    try {
+      const token = getToken();
+      const response = await fetch(`/api/conversations/${targetConversationId}/messages/stream`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "text/event-stream",
+        },
+        credentials: "omit",
+        body: JSON.stringify({ question }),
+      });
+      if (response.status === 401) {
+        redirectToLogin();
+        throw new Error("登录已失效");
+      }
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        const error = new Error(payload.error || `请求失败 (${response.status})`);
+        error.status = response.status;
+        throw error;
+      }
+      if (!(response.headers.get("Content-Type") || "").includes("text/event-stream") || !response.body) {
+        throw new Error("服务器没有返回可读取的回答流");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      const handlers = {
+        start: () => setConversationStatus("回答生成中…", "loading"),
+        delta: (payload) => {
+          assistantMessage.body.textContent += payload.text || "";
+          conversationMessages.scrollTop = conversationMessages.scrollHeight;
+        },
+        done: (payload) => {
+          completed = true;
+          assistantMessage.body.textContent = payload.answer || assistantMessage.body.textContent;
+          assistantMessage.state.textContent = "已完成";
+          assistantMessage.state.classList.remove("error");
+          addMessageCitations(assistantMessage.article, payload.citations || []);
+          setConversationStatus(
+            payload.citations?.length ? "回答完成，来源已列在回答下方。" : "资料中未找到相关依据。",
+            payload.citations?.length ? "success" : "",
+          );
+        },
+        error: (payload) => {
+          streamErrored = true;
+          assistantMessage.body.textContent = payload.error || "回答服务暂不可用，请稍后重试。";
+          assistantMessage.state.textContent = "回答失败";
+          assistantMessage.state.classList.add("error");
+          setConversationStatus("回答服务暂不可用；失败状态已保存，可稍后重试。", "error");
+        },
+      };
+      const consume = (chunk) => {
+        buffer += chunk;
+        let boundary;
+        while ((boundary = buffer.indexOf("\n\n")) !== -1) {
+          const block = buffer.slice(0, boundary);
+          buffer = buffer.slice(boundary + 2);
+          if (block.trim()) handleSseBlock(block, handlers);
+        }
+      };
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        consume(decoder.decode(value, { stream: true }));
+      }
+      consume(decoder.decode());
+      if (buffer.trim()) handleSseBlock(buffer, handlers);
+      if (!completed && !streamErrored) {
+        assistantMessage.body.textContent = "回答流意外结束，请查看历史状态后重试。";
+        assistantMessage.state.textContent = "处理中断";
+        assistantMessage.state.classList.add("error");
+        setConversationStatus("回答流意外结束。", "error");
+      }
+    } catch (error) {
+      assistantMessage.article.remove();
+      const statusMessage = error.status === 404
+        ? "该会话不可见或已删除。"
+        : error.status === 503
+          ? "回答服务暂不可用，请稍后重试。"
+          : `发送失败：${error.message}`;
+      setConversationStatus(statusMessage, "error");
+      if (error.message !== "登录已失效" && error.status !== 404) {
+        const failed = makeConversationMessage({ role: "assistant", content: statusMessage, status: "failed" });
+        conversationMessages.append(failed.article);
+      }
+    } finally {
+      conversationStreaming = false;
+      conversationSubmit.disabled = false;
+      newConversationButton.disabled = false;
+      if (activeConversationId === targetConversationId) await loadConversations(targetConversationId);
+    }
+  };
+
+  const loadAssistantSettings = async () => {
+    try {
+      const [prompt, skill] = await Promise.all([
+        fetchJson("/api/assistant/settings"),
+        fetchJson("/api/assistant/skills/solution-guidance"),
+      ]);
+      assistantPrompt.value = prompt.prompt;
+      solutionGuidanceToggle.checked = Boolean(skill.enabled);
+      setAssistantSettingsStatus("");
+    } catch (error) {
+      if (error.message !== "登录已失效") setAssistantSettingsStatus(`设置读取失败：${error.message}`, "error");
+    }
+  };
+
+  const updateSolutionGuidance = async () => {
+    solutionGuidanceToggle.disabled = true;
+    try {
+      const skill = await fetchJson("/api/assistant/skills/solution-guidance", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: solutionGuidanceToggle.checked }),
+      });
+      solutionGuidanceToggle.checked = Boolean(skill.enabled);
+      setAssistantSettingsStatus("解题引导设置已保存。", "success");
+    } catch (error) {
+      if (error.message !== "登录已失效") setAssistantSettingsStatus(`保存失败：${error.message}`, "error");
+    } finally {
+      solutionGuidanceToggle.disabled = false;
+    }
+  };
+
+  const saveAssistantPrompt = async (event) => {
+    event.preventDefault();
+    const button = $(`[data-save-assistant-prompt]`);
+    button.disabled = true;
+    setAssistantSettingsStatus("正在保存提示词…", "loading");
+    try {
+      const payload = await fetchJson("/api/assistant/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: assistantPrompt.value }),
+      });
+      assistantPrompt.value = payload.prompt;
+      setAssistantSettingsStatus(`已保存；后续回答使用版本 ${payload.prompt_version}。`, "success");
+    } catch (error) {
+      if (error.message !== "登录已失效") setAssistantSettingsStatus(`保存失败：${error.message}`, "error");
+    } finally {
+      button.disabled = false;
+    }
   };
 
   const searchKnowledge = async (event) => {
@@ -388,6 +731,10 @@
   searchForm.addEventListener("submit", (event) => { event.preventDefault(); loadMaterials(); });
   knowledgeForm?.addEventListener("submit", searchKnowledge);
   answerForm?.addEventListener("submit", askKnowledge);
+  newConversationButton.addEventListener("click", createConversation);
+  conversationForm.addEventListener("submit", sendConversationMessage);
+  assistantPromptForm.addEventListener("submit", saveAssistantPrompt);
+  solutionGuidanceToggle.addEventListener("change", updateSolutionGuidance);
   $(`[data-refresh]`).addEventListener("click", () => loadMaterials());
   $(`[data-logout]`).addEventListener("click", logout);
   uploadDialogButton.addEventListener("click", () => { uploadPanel.hidden = false; uploadPanel.scrollIntoView({ behavior: "smooth", block: "start" }); });
@@ -444,7 +791,13 @@
   });
 
   if (document.body.dataset.initialQuery) searchInput.value = document.body.dataset.initialQuery;
-  loadIdentity().then(() => loadMaterials(document.body.dataset.initialQuery || "")).catch((error) => {
+  loadIdentity().then(async () => {
+    await Promise.all([
+      loadMaterials(document.body.dataset.initialQuery || ""),
+      loadConversations(),
+      user.role === "teacher" ? loadAssistantSettings() : Promise.resolve(),
+    ]);
+  }).catch((error) => {
     if (error.message !== "登录已失效") setNotice("无法确认当前身份，请重新登录。", true);
   });
 })();

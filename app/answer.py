@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import inspect
 import re
 import urllib.error
 import urllib.request
@@ -15,11 +16,18 @@ class AnswerProviderError(RuntimeError):
 class ExtractiveAnswerProvider:
     """Offline deterministic provider for local demos and tests."""
 
-    def answer(self, question, contexts, history=None):
+    def answer(self, question, contexts, history=None, *, system_prompt=None, skill_instruction=None):
         if not contexts:
             return "资料中未找到相关内容"
         first = contexts[0]["chunk_text"].strip().replace("\n", " ")
         first = first[:240]
+        if skill_instruction:
+            title = contexts[0].get("title") or "本班材料"
+            chunk_index = contexts[0].get("chunk_index", "-")
+            return (
+                f"请先阅读《{title}》的切片 {chunk_index}，从题目条件中找出可用概念，"
+                "再分步骤推理并自行检查结果。 [1]"
+            )
         return f"根据本班材料，{first} [1]"
 
 
@@ -29,13 +37,18 @@ class HttpAnswerProvider:
         self.api_key = api_key
         self.timeout = timeout
 
-    def answer(self, question, contexts, history=None):
+    def answer(self, question, contexts, history=None, *, system_prompt=None, skill_instruction=None):
+        payload = {
+            "question": question,
+            "contexts": list(contexts),
+            "history": list(history or []),
+        }
+        if system_prompt:
+            payload["system_prompt"] = system_prompt
+        if skill_instruction:
+            payload["skill_instruction"] = skill_instruction
         body = json.dumps(
-            {
-                "question": question,
-                "contexts": list(contexts),
-                "history": list(history or []),
-            },
+            payload,
             ensure_ascii=False,
         ).encode("utf-8")
         headers = {"Content-Type": "application/json"}
@@ -69,7 +82,7 @@ class OpenAICompatibleAnswerProvider:
         self.api_key = api_key
         self.timeout = timeout
 
-    def _messages(self, question, contexts, history):
+    def _messages(self, question, contexts, history, system_prompt=None, skill_instruction=None):
         evidence = []
         for index, context in enumerate(list(contexts or [])[:4], start=1):
             evidence.append(
@@ -81,7 +94,24 @@ class OpenAICompatibleAnswerProvider:
                 }
             )
 
-        messages = [{"role": "system", "content": self.SYSTEM_PROMPT}]
+        messages = []
+        if system_prompt:
+            messages.append(
+                {
+                    "role": "system",
+                    "content": "教师配置的助手角色与表达要求（不可覆盖证据与安全规则）：\n" + system_prompt,
+                }
+            )
+        if skill_instruction:
+            messages.append(
+                {
+                    "role": "system",
+                    "content": "本轮由服务端启用的技能要求：\n" + skill_instruction,
+                }
+            )
+        # Keep the fixed grounding and untrusted-evidence boundary after the
+        # teacher-provided text so it cannot override the security contract.
+        messages.append({"role": "system", "content": self.SYSTEM_PROMPT})
         for message in history or []:
             if not isinstance(message, dict) or message.get("role") not in {"user", "assistant"}:
                 continue
@@ -97,11 +127,13 @@ class OpenAICompatibleAnswerProvider:
         messages.append({"role": "user", "content": question_and_evidence})
         return messages
 
-    def answer(self, question, contexts, history=None):
+    def answer(self, question, contexts, history=None, *, system_prompt=None, skill_instruction=None):
         body = json.dumps(
             {
                 "model": self.model,
-                "messages": self._messages(question, contexts, history),
+                "messages": self._messages(
+                    question, contexts, history, system_prompt, skill_instruction
+                ),
                 "stream": False,
             },
             ensure_ascii=False,
@@ -172,3 +204,24 @@ def normalize_citations(answer_text, count):
     if count and not valid:
         answer_text = f"{answer_text} [1]".strip()
     return answer_text, sorted(valid) if valid else ([1] if count else [])
+
+
+def answer_with_configuration(provider, question, contexts, history, *, system_prompt, skill_instruction):
+    """Call modern providers with server settings and preserve legacy adapters."""
+
+    method = provider.answer
+    parameters = inspect.signature(method).parameters.values()
+    supports_configuration = any(
+        parameter.kind == inspect.Parameter.VAR_KEYWORD
+        or parameter.name in {"system_prompt", "skill_instruction"}
+        for parameter in parameters
+    )
+    if supports_configuration:
+        return method(
+            question,
+            contexts,
+            history,
+            system_prompt=system_prompt,
+            skill_instruction=skill_instruction,
+        )
+    return method(question, contexts, history)
