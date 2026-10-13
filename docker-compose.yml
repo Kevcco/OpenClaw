@@ -20,6 +20,8 @@ services:
     environment:
       DATABASE_PATH: /app/data/app.db
       UPLOAD_DIR: /app/uploads
+      SKILLS_DIR: /app/skills
+      SKILL_INSTRUCTION_TOKEN_BUDGET: ${SKILL_INSTRUCTION_TOKEN_BUDGET:-800}
       TOKEN_HASH_SECRET: ${TOKEN_HASH_SECRET:?TOKEN_HASH_SECRET must be set}
       ACCESS_TOKEN_TTL_SECONDS: ${ACCESS_TOKEN_TTL_SECONDS:-28800}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}

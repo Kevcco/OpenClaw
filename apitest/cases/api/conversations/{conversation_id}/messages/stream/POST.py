@@ -23,7 +23,9 @@ def run():
     events = event_stream(result["text"])
     names = [name for name, _ in events]
     assert names[0] == "start" and "delta" in names and names[-1] == "done"
+    start = events[0][1]
     done = events[-1][1]
+    assert start.get("audit_id") and done.get("audit_id") == start["audit_id"]
     assert isinstance(done.get("message_id"), int)
     assert isinstance(done.get("answer"), str) and done["answer"]
     assert done.get("citations")
@@ -40,6 +42,13 @@ def run():
     assert json.loads(message["citations_json"]) == done["citations"]
     assert isinstance(message["prompt_version"], int)
     assert isinstance(message["skill_version"], int)
+    audit = row(
+        "SELECT operation, status, conversation_message_id FROM assistant_audit_operations WHERE audit_id = ?",
+        (done["audit_id"],),
+    )
+    assert audit is not None
+    assert audit["operation"] == "conversation" and audit["status"] == "complete"
+    assert audit["conversation_message_id"] == done["message_id"]
     citation = done["citations"][0]
     source = citation["source"]
     stored_chunk = row(
@@ -58,6 +67,7 @@ def run():
     )
     no_evidence_events = event_stream(no_evidence["text"])
     no_evidence_done = next(payload for name, payload in no_evidence_events if name == "done")
+    assert no_evidence_done.get("audit_id")
     assert no_evidence_done["citations"] == []
     assert "资料中未找到相关内容" in no_evidence_done["answer"]
     empty_snapshot = row(
@@ -68,4 +78,4 @@ def run():
     assert json.loads(empty_snapshot["citations_json"]) == []
     assert request("DELETE", f"/api/conversations/{conversation_id}", token=token)["status"] == 200
     assert row("SELECT id FROM conversations WHERE id = ?", (conversation_id,)) is None
-    return f"SSE order, citation/source snapshot, no-evidence behavior, and SQLite persistence verified for conversation {conversation_id}"
+    return f"SSE order, citation/source snapshot, audit linkage, no-evidence behavior, and SQLite persistence verified for conversation {conversation_id}"

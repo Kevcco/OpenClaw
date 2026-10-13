@@ -69,7 +69,9 @@ def test_ask_without_hits_does_not_call_provider(app, client):
     headers = login(client)
     response = client.post("/api/ask", headers=headers, json={"question": "完全不存在的内容"})
     assert response.status_code == 200
-    assert response.json == {"answer": "资料中未找到相关内容", "citations": []}
+    assert response.json["answer"] == "资料中未找到相关内容"
+    assert response.json["citations"] == []
+    assert response.json["audit_id"]
     assert provider.calls == []
 
 
@@ -95,6 +97,31 @@ def test_ask_limits_provider_context_to_four_chunks(app, client):
     assert search.call_args.args[1] == 1
 
 
+def test_ask_injects_only_enabled_skill_summary_when_question_does_not_match(app, client):
+    seed(app)
+    class ConfigAwareProvider:
+        def __init__(self):
+            self.skill_instruction = None
+
+        def answer(self, question, contexts, history=None, *, system_prompt=None, skill_instruction=None):
+            self.skill_instruction = skill_instruction
+            return "材料依据 [1]"
+
+    provider = ConfigAwareProvider()
+    app.extensions["answer_provider"] = provider
+    headers = login(client)
+
+    response = client.post(
+        "/api/ask", headers=headers, json={"question": "A班材料正文"}
+    )
+
+    assert response.status_code == 200
+    assert response.json["citations"]
+    assert "可用技能简介" in provider.skill_instruction
+    assert "技能《" not in provider.skill_instruction
+    assert "的完整指令：" not in provider.skill_instruction
+
+
 def test_ask_provider_failure_returns_503_without_extractive_fallback(app, client):
     seed(app)
     app.extensions["answer_provider"] = FailingAnswerProvider()
@@ -103,4 +130,5 @@ def test_ask_provider_failure_returns_503_without_extractive_fallback(app, clien
     response = client.post("/api/ask", headers=headers, json={"question": "一次函数"})
 
     assert response.status_code == 503
-    assert response.json == {"error": "answer service unavailable"}
+    assert response.json["error"] == "answer service unavailable"
+    assert response.json["audit_id"]

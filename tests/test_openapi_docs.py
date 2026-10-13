@@ -28,6 +28,9 @@ def test_openapi_covers_required_routes_and_bearer_boundaries(app):
         ("/api/assistant/settings", "put"),
         ("/api/assistant/skills/solution-guidance", "get"),
         ("/api/assistant/skills/solution-guidance", "patch"),
+        ("/api/assistant/skills", "get"),
+        ("/api/assistant/skills/{skill_key}", "patch"),
+        ("/api/admin/audits", "get"),
         ("/api/conversations", "get"),
         ("/api/conversations", "post"),
         ("/api/conversations/{conversation_id}", "get"),
@@ -62,6 +65,9 @@ def test_openapi_covers_required_routes_and_bearer_boundaries(app):
     assert "401" in paths["/api/me"]["get"]["responses"]
     assert "403" in paths["/api/assistant/settings"]["put"]["responses"]
     assert "404" in paths["/api/conversations/{conversation_id}"]["get"]["responses"]
+    assert "audit_id" in paths["/api/knowledge/search"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]["properties"]
+    assert "audit_id" in paths["/api/ask"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]["properties"]
+    assert paths["/api/admin/audits"]["get"]["parameters"][-2]["schema"]["maximum"] == 100
 
 
 def test_openapi_json_and_interactive_swagger_page_are_available(client):

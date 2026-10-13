@@ -1,0 +1,10 @@
+{
+  "key": "homework-review",
+  "name": "作业批改",
+  "version": "1.0.0",
+  "summary": "根据本班材料检查学生提交的答案，说明判断依据和改进方向。",
+  "applicability": {"any_terms": ["批改", "作业", "检查答案", "评阅", "给分", "评分"]},
+  "priority": 60,
+  "instruction_file": "instructions.md",
+  "instruction_tokens": 260
+}

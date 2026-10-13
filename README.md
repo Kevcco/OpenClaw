@@ -64,15 +64,35 @@ Compose 默认使用确定性的 `EMBEDDING_MODE=hash` 和本地 extractive answ
 
 ## 第 5 课：提示词、解题引导与流式会话
 
-登录后的 `/materials` 工作区在保留教研材料、知识检索和单次问答的基础上，增加“连续知识问答”：可新建/切换个人会话、查看持久化历史、连续追问并逐段接收回答。学生只能看到自己的会话；班级和用户边界由服务端按 Bearer Token 校验，不能由请求参数覆盖。教师可在工作区维护本班助手提示词并启停“解题引导”技能，学生端不显示管理控件，API 仍独立执行教师权限校验。
+登录后的 `/materials` 工作区在保留教研材料、知识检索和单次问答的基础上，增加“连续知识问答”：可新建/切换个人会话、查看持久化历史、连续追问并逐段接收回答。学生只能看到自己的会话；班级和用户边界由服务端按 Bearer Token 校验，不能由请求参数覆盖。教师可在工作区维护本班助手提示词并管理已注册技能的启停状态；学生端不显示管理控件，API 仍独立执行教师权限校验。
 
 每轮会话消息由服务端读取当前班级设置，只按本轮最新问题进行最多 4 个切片的 hybrid 检索，再将已筛选的历史和本班证据交给回答 provider。无检索依据时返回固定的未找到说明和空引用，不调用回答模型。消息保存问题、回答状态、引用以及配置版本；历史不会因后续提示词修改而改写。
 
 - `GET/POST /api/conversations`：列出/创建当前用户会话。
 - `GET/DELETE /api/conversations/<id>`：读取或删除自己的会话及消息。
 - `POST /api/conversations/<id>/messages/stream`：携带 `{ "question": "..." }`，使用 Bearer 头获取 SSE；事件依次为 `start`、一个或多个 `delta`，然后 `done`，生成失败时发送 `error`。完成事件包含 `message_id`、完整 `answer` 和与 `[1]` 编号对应的 `citations`。
-- `GET/PUT /api/assistant/settings` 与 `GET/PATCH /api/assistant/skills/solution-guidance`：教师专用的本班提示词和技能管理接口。
+- `GET/PUT /api/assistant/settings`：教师专用的本班提示词接口。
+- `GET /api/assistant/skills` 与 `PATCH /api/assistant/skills/<skill_key>`：教师查看注册技能并启停本班技能；请求只接受 `enabled`，班级由 Bearer Token 决定。兼容接口 `GET/PATCH /api/assistant/skills/solution-guidance` 仍映射同一开关。
+- `GET /api/admin/audits`：仅部署端可信授予的管理员可查询最小化审计数据，支持 `audit_id`、`class_id`、`user_id`、`operation`、`status`、`created_after`、`created_before`、`skill_key`、`material_id`、`chunk_id` 筛选，`limit` 最大 100、`offset` 最大 100000。响应只包含技能判定/版本和来源标题、材料/切片 ID、名次、分数/模式及引用序号，不包含切片正文、完整回答、完整提示词、Token 或密钥。
+- `/api/knowledge/search`、`/api/ask` 的成功响应，以及会话 SSE 的 `start`/`done` 事件包含 `audit_id`，可供管理员定位同一操作轨迹。
 - `GET /openapi.json` 与 `/swagger/`：机器可读 API 契约和可输入 Bearer Token 的交互式接口页。Swagger 页只调用当前服务，不暴露模型服务密钥。
+
+### 技能包和渐进式披露
+
+技能包位于部署端只读的 `skills/<skill-key>/`，必须含 `skill.yaml` 和 `instructions.md`；包格式、字段和示例见 [skills/README.md](skills/README.md)。`skill.yaml` 使用 JSON（YAML 1.2 子集）语法，不需要运行时 YAML 依赖。注册器校验唯一 key、必需字段、UTF-8 内容和包内规范化路径；`scripts/` 只登记资源，本课程版本绝不导入或执行脚本。
+
+每轮只根据最新问题的声明关键词匹配本班已启用技能。所有已启用技能的一句话简介可常驻上下文；完整指令按优先级降序、key 升序在 `SKILL_INSTRUCTION_TOKEN_BUDGET` 预算内整体加载，超出预算则跳过而不截断。默认预算为 800 个声明成本单位。教师不能通过 API 改写技能文件/指令/元数据/脚本。
+
+### 审计管理员授权
+
+管理员资格与教师/学生角色分开保存在 `admin_principals` 表。只有在有权访问服务器数据库的本地运维人员能执行下列命令；没有 HTTP 提权接口。Compose 容器里可用：
+
+```bash
+docker compose exec app python scripts/admin_access.py grant teacher_a --granted-by operator
+docker compose exec app python scripts/admin_access.py revoke teacher_a
+```
+
+本地开发可用 `DATABASE_PATH=... python scripts/admin_access.py grant <username>`。管理员查询只返回审计 operation/hit 的允许字段。审计永久保存在应用 SQLite 数据库，随 Compose 数据卷备份和恢复；数据字段为随机 `audit_id`、用户/班级 ID、操作/状态/时间、技能判定及版本快照，以及命中来源标题/材料 ID/切片 ID/索引/排名/分数/检索模式/引用关系。表中不存问题、切片正文、回答正文、提示词、Bearer Token 或模型密钥；数据库文件访问仍应按教学行为元数据进行保护。
 
 Compose 服务运行时，可用接口测试脚本核对响应与宿主机映射的 SQLite 状态。默认演示账号可按需通过环境变量替换：`APITEST_BASE_URL`、`APITEST_DATABASE_PATH`、`APITEST_TEACHER_USERNAME/PASSWORD`、`APITEST_STUDENT_A_USERNAME/PASSWORD`、`APITEST_STUDENT_B_USERNAME/PASSWORD`。
 

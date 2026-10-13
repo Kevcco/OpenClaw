@@ -10,6 +10,7 @@ def run():
     result_a = request("GET", path, token=token_a)
     result_b = request("GET", path, token=token_b)
     assert result_a["status"] == result_b["status"] == 200
+    assert result_a["json"].get("audit_id") and result_b["json"].get("audit_id")
     assert result_a["json"]["hits"]
 
     user_a = row("SELECT class_id FROM users WHERE username = ?", (ACCOUNTS["student_a"][0],))
@@ -23,4 +24,8 @@ def run():
                    WHERE material_id = ? AND class_id = ? AND chunk_index = ?""",
                 (source["material_id"], class_id, source["chunk_index"]),
             ) is not None
+        assert row(
+            "SELECT class_id FROM assistant_audit_operations WHERE audit_id = ?",
+            (result["json"]["audit_id"],),
+        )["class_id"] == class_id
     return f"A/B search results map only to their authenticated class chunks (A={len(result_a['json']['hits'])}, B={len(result_b['json']['hits'])})"

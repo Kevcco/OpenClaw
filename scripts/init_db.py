@@ -12,11 +12,12 @@ def main():
     upload_dir = Path(
         os.getenv("UPLOAD_DIR", str(project_root / "uploads"))
     )
+    skills_dir = Path(os.getenv("SKILLS_DIR", str(project_root / "skills")))
     database_path.parent.mkdir(parents=True, exist_ok=True)
     connection = connect(database_path)
     try:
         init_schema(connection)
-        seed_data(connection, upload_dir)
+        seed_data(connection, upload_dir, skills_dir)
     finally:
         connection.close()
     print(f"initialized {database_path}")

@@ -47,7 +47,7 @@ def test_workspace_loads_assets_and_uses_server_identity(client, app):
     assert b"data-new-conversation" in page.data
     assert b"data-assistant-settings hidden" in page.data
     assert "技能配置".encode("utf-8") in page.data
-    assert b"data-solution-guidance" in page.data
+    assert b"data-assistant-skill-list" in page.data
     assert "提示词配置".encode("utf-8") in page.data
     assert "A班材料" not in page.get_data(as_text=True)
     assert b"/api/conversations?limit=100" in script.data
@@ -60,7 +60,8 @@ def test_workspace_loads_assets_and_uses_server_identity(client, app):
     assert b"teacherSettings.hidden = false" in script.data
     assert b"teacherSettings.open = true" in script.data
     assert b"/api/assistant/settings" in script.data
-    assert b"/api/assistant/skills/solution-guidance" in script.data
+    assert b"/api/assistant/skills" in script.data
+    assert b"encodeURIComponent(skillKey)" in script.data
     assert b"innerHTML" not in script.data
     assert stylesheet.status_code == 200
     assert assistant_settings_stylesheet.status_code == 200

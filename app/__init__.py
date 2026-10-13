@@ -27,6 +27,8 @@ def create_app(test_config=None):
         ANSWER_MODEL=os.getenv("ANSWER_MODEL"),
         ANSWER_API_KEY=os.getenv("ANSWER_API_KEY"),
         ANSWER_TIMEOUT=float(os.getenv("ANSWER_TIMEOUT", "20")),
+        SKILLS_DIR=str(project_root / "skills"),
+        SKILL_INSTRUCTION_TOKEN_BUDGET=int(os.getenv("SKILL_INSTRUCTION_TOKEN_BUDGET", "800")),
     )
 
     if test_config is not None:
@@ -50,6 +52,7 @@ def create_app(test_config=None):
     from .assistant_routes import bp as assistant_bp
     from .openapi_docs import bp as api_docs_bp
     from . import db, indexing
+    from .skill_registry import load_registry
     from .answer import build_answer_provider
     from .vector_store import build_embedding_provider, build_vector_store
 
@@ -59,6 +62,7 @@ def create_app(test_config=None):
     app.register_blueprint(assistant_bp)
     app.register_blueprint(api_docs_bp)
     db.init_app(app)
+    app.extensions["skill_registry"] = load_registry(app.config["SKILLS_DIR"])
     app.extensions["knowledge_embedding_provider"] = build_embedding_provider(app.config)
     app.extensions["knowledge_vector_store"] = build_vector_store(app.config)
     app.extensions["answer_provider"] = build_answer_provider(app.config)

@@ -1,0 +1,10 @@
+{
+  "key": "solution-guidance",
+  "name": "解题引导",
+  "version": "1.0.0",
+  "summary": "帮助学生从题目条件出发，分步骤推理并自行检查。",
+  "applicability": {"any_terms": ["解题", "怎么做", "如何做", "求解", "计算", "方程", "函数", "证明", "步骤", "推理"]},
+  "priority": 100,
+  "instruction_file": "instructions.md",
+  "instruction_tokens": 220
+}

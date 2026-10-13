@@ -6,7 +6,9 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
+COPY skills ./skills
 COPY scripts ./scripts
+COPY README.md ./README.md
 COPY run.py ./run.py
 
 RUN mkdir -p /app/data /app/uploads

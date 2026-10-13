@@ -1,5 +1,6 @@
 import hashlib
 import json
+import secrets
 import sqlite3
 from pathlib import Path
 
@@ -80,6 +81,43 @@ CREATE TABLE IF NOT EXISTS assistant_skills (
     UNIQUE (class_id, skill_key)
 );
 
+CREATE TABLE IF NOT EXISTS assistant_skill_settings_versions (
+    class_id INTEGER PRIMARY KEY REFERENCES classes(id) ON DELETE CASCADE,
+    version INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS admin_principals (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    granted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    granted_by TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS assistant_audit_operations (
+    audit_id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    class_id INTEGER NOT NULL,
+    operation TEXT NOT NULL CHECK (operation IN ('search', 'ask', 'conversation')),
+    status TEXT NOT NULL CHECK (status IN ('processing', 'complete', 'no-evidence', 'failed', 'interrupted')),
+    skill_decisions_json TEXT NOT NULL DEFAULT '[]',
+    conversation_message_id INTEGER,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS assistant_audit_hits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    audit_id TEXT NOT NULL REFERENCES assistant_audit_operations(audit_id) ON DELETE CASCADE,
+    material_id INTEGER NOT NULL,
+    chunk_id INTEGER NOT NULL,
+    source_title TEXT NOT NULL,
+    chunk_index INTEGER NOT NULL,
+    rank INTEGER NOT NULL,
+    score REAL,
+    matched_modes_json TEXT NOT NULL DEFAULT '[]',
+    citation_index INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS conversations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -100,6 +138,7 @@ CREATE TABLE IF NOT EXISTS conversation_messages (
     citations_json TEXT NOT NULL DEFAULT '[]',
     prompt_version INTEGER,
     skill_version INTEGER,
+    skill_snapshot_json TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -160,6 +199,11 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_entry_id ON knowledge_chunks(kno
 CREATE INDEX IF NOT EXISTS idx_assistant_skills_class ON assistant_skills(class_id, skill_key);
 CREATE INDEX IF NOT EXISTS idx_conversations_owner_class ON conversations(owner_user_id, class_id, updated_at);
 CREATE INDEX IF NOT EXISTS idx_conversation_messages_conversation ON conversation_messages(conversation_id, owner_user_id, class_id, id);
+CREATE INDEX IF NOT EXISTS idx_assistant_audit_class_time ON assistant_audit_operations(class_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_assistant_audit_user_time ON assistant_audit_operations(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_assistant_audit_operation_status ON assistant_audit_operations(operation, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_assistant_audit_hit_source ON assistant_audit_hits(material_id, chunk_id);
+CREATE INDEX IF NOT EXISTS idx_assistant_audit_hit_operation ON assistant_audit_hits(audit_id, rank);
 """
 
 SEED_CREDENTIALS = {
@@ -203,6 +247,19 @@ def init_schema(connection):
         connection.execute(
             "ALTER TABLE knowledge_chunks ADD COLUMN vector_status TEXT NOT NULL DEFAULT 'pending'"
         )
+    message_columns = {
+        row[1] for row in connection.execute("PRAGMA table_info(conversation_messages)")
+    }
+    if "skill_snapshot_json" not in message_columns:
+        connection.execute(
+            "ALTER TABLE conversation_messages ADD COLUMN skill_snapshot_json TEXT NOT NULL DEFAULT '[]'"
+        )
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO assistant_skill_settings_versions (class_id, version)
+        SELECT class_id, 1 FROM assistant_skills GROUP BY class_id
+        """
+    )
     connection.commit()
 
 
@@ -220,7 +277,9 @@ def _user_ids(connection):
     }
 
 
-def seed_data(connection, upload_dir):
+def seed_data(connection, upload_dir, skills_dir=None):
+    from .skill_registry import load_registry
+
     upload_root = Path(upload_dir)
     upload_root.mkdir(parents=True, exist_ok=True)
     connection.executemany(
@@ -232,22 +291,30 @@ def seed_data(connection, upload_dir):
         "你是 CampusClaw 的学习助手。请用清晰、耐心的中文回应学生，优先帮助学生理解问题。"
         "事实性回答必须以本轮检索到的本班材料为依据；依据不足时要明确说明。"
     )
-    solution_guidance = (
-        "不要直接给出题目的最终答案。先指出可用的概念或条件，再分步骤提示学生如何推理，"
-        "鼓励学生完成计算并自行检查；引用本班材料的标题和切片位置。"
-    )
+    registry = load_registry(skills_dir or Path(__file__).resolve().parent.parent / "skills")
     for class_id in class_ids.values():
         connection.execute(
             "INSERT OR IGNORE INTO assistant_configs (class_id, prompt) VALUES (?, ?)",
             (class_id, assistant_prompt),
         )
+        for key, package in registry.items():
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO assistant_skills
+                    (class_id, skill_key, name, instruction, enabled)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    class_id,
+                    key,
+                    package["name"],
+                    package["instruction"],
+                    int(key == "solution-guidance"),
+                ),
+            )
         connection.execute(
-            """
-            INSERT OR IGNORE INTO assistant_skills
-                (class_id, skill_key, name, instruction, enabled)
-            VALUES (?, 'solution-guidance', '解题引导', ?, 1)
-            """,
-            (class_id, solution_guidance),
+            "INSERT OR IGNORE INTO assistant_skill_settings_versions (class_id, version) VALUES (?, 1)",
+            (class_id,),
         )
     users = [
         ("teacher_a", "teacher", class_ids["A班"]),
@@ -339,7 +406,7 @@ def get_assistant_skill(connection, class_id, skill_key="solution-guidance"):
 
 
 def update_assistant_skill(connection, class_id, enabled, skill_key="solution-guidance"):
-    connection.execute(
+    cursor = connection.execute(
         """
         UPDATE assistant_skills
         SET enabled = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP
@@ -347,8 +414,209 @@ def update_assistant_skill(connection, class_id, enabled, skill_key="solution-gu
         """,
         (int(bool(enabled)), class_id, skill_key),
     )
+    if cursor.rowcount:
+        connection.execute(
+            """
+            INSERT INTO assistant_skill_settings_versions (class_id, version)
+            VALUES (?, 2)
+            ON CONFLICT(class_id) DO UPDATE SET
+                version = assistant_skill_settings_versions.version + 1,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (class_id,),
+        )
     connection.commit()
     return get_assistant_skill(connection, class_id, skill_key)
+
+
+def get_assistant_skill_settings_version(connection, class_id):
+    row = connection.execute(
+        "SELECT version FROM assistant_skill_settings_versions WHERE class_id = ?",
+        (class_id,),
+    ).fetchone()
+    return row["version"] if row else 0
+
+
+def list_assistant_skills(connection, class_id):
+    return connection.execute(
+        "SELECT * FROM assistant_skills WHERE class_id = ? ORDER BY skill_key",
+        (class_id,),
+    ).fetchall()
+
+
+def is_admin(connection, user_id):
+    return connection.execute(
+        "SELECT 1 FROM admin_principals WHERE user_id = ?", (user_id,)
+    ).fetchone() is not None
+
+
+def grant_admin(connection, username, granted_by):
+    user = connection.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()
+    if user is None:
+        return False
+    connection.execute(
+        """
+        INSERT INTO admin_principals (user_id, granted_by)
+        VALUES (?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET granted_by = ?, granted_at = CURRENT_TIMESTAMP
+        """,
+        (user["id"], granted_by, granted_by),
+    )
+    connection.commit()
+    return True
+
+
+def revoke_admin(connection, username):
+    cursor = connection.execute(
+        "DELETE FROM admin_principals WHERE user_id = (SELECT id FROM users WHERE username = ?)",
+        (username,),
+    )
+    connection.commit()
+    return cursor.rowcount > 0
+
+
+def create_audit_operation(
+    connection, *, user_id, class_id, operation, skill_decisions=None,
+    conversation_message_id=None,
+):
+    audit_id = secrets.token_urlsafe(18)
+    connection.execute(
+        """
+        INSERT INTO assistant_audit_operations
+            (audit_id, user_id, class_id, operation, status,
+             skill_decisions_json, conversation_message_id)
+        VALUES (?, ?, ?, ?, 'processing', ?, ?)
+        """,
+        (
+            audit_id,
+            user_id,
+            class_id,
+            operation,
+            json.dumps(skill_decisions or [], ensure_ascii=False, separators=(",", ":")),
+            conversation_message_id,
+        ),
+    )
+    connection.commit()
+    return audit_id
+
+
+def record_audit_hits(connection, audit_id, hits, citation_indexes=None):
+    citation_indexes = citation_indexes or {}
+    connection.execute("DELETE FROM assistant_audit_hits WHERE audit_id = ?", (audit_id,))
+    for rank, (row, score, modes) in enumerate(hits, start=1):
+        connection.execute(
+            """
+            INSERT INTO assistant_audit_hits
+                (audit_id, material_id, chunk_id, source_title, chunk_index,
+                 rank, score, matched_modes_json, citation_index)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                audit_id,
+                row["material_id"],
+                row["id"],
+                row["title"],
+                row["chunk_index"],
+                rank,
+                score,
+                json.dumps(sorted(modes or []), ensure_ascii=False),
+                citation_indexes.get(row["id"]),
+            ),
+        )
+    connection.commit()
+
+
+def finish_audit_operation(connection, audit_id, status):
+    if status not in {"complete", "no-evidence", "failed", "interrupted"}:
+        raise ValueError("invalid audit status")
+    connection.execute(
+        """
+        UPDATE assistant_audit_operations
+        SET status = ?, completed_at = CURRENT_TIMESTAMP
+        WHERE audit_id = ?
+        """,
+        (status, audit_id),
+    )
+    connection.commit()
+
+
+def list_audit_operations(connection, filters, *, limit, offset):
+    clauses = []
+    params = []
+    columns = {
+        "audit_id": "o.audit_id = ?",
+        "class_id": "o.class_id = ?",
+        "user_id": "o.user_id = ?",
+        "operation": "o.operation = ?",
+        "status": "o.status = ?",
+        "created_after": "o.created_at >= ?",
+        "created_before": "o.created_at <= ?",
+    }
+    for key, clause in columns.items():
+        value = filters.get(key)
+        if value is not None and value != "":
+            clauses.append(clause)
+            params.append(value)
+    for key, expression in (("skill_key", "json_each.value"),):
+        value = filters.get(key)
+        if value:
+            clauses.append(
+                "EXISTS (SELECT 1 FROM json_each(o.skill_decisions_json) WHERE json_extract(json_each.value, '$.skill_key') = ?)"
+            )
+            params.append(value)
+    for key, column in (("material_id", "h.material_id"), ("chunk_id", "h.chunk_id")):
+        value = filters.get(key)
+        if value is not None and value != "":
+            clauses.append(
+                f"EXISTS (SELECT 1 FROM assistant_audit_hits h WHERE h.audit_id = o.audit_id AND {column} = ?)"
+            )
+            params.append(value)
+    where = " WHERE " + " AND ".join(clauses) if clauses else ""
+    rows = connection.execute(
+        f"SELECT o.* FROM assistant_audit_operations o{where} ORDER BY o.created_at DESC, o.audit_id DESC LIMIT ? OFFSET ?",
+        [*params, limit, offset],
+    ).fetchall()
+    result = []
+    for row in rows:
+        hits = connection.execute(
+            """
+            SELECT material_id, chunk_id, source_title, chunk_index, rank,
+                   score, matched_modes_json, citation_index
+            FROM assistant_audit_hits WHERE audit_id = ? ORDER BY rank
+            """,
+            (row["audit_id"],),
+        ).fetchall()
+        try:
+            decisions = json.loads(row["skill_decisions_json"] or "[]")
+        except json.JSONDecodeError:
+            decisions = []
+        result.append(
+            {
+                "audit_id": row["audit_id"],
+                "user_id": row["user_id"],
+                "class_id": row["class_id"],
+                "operation": row["operation"],
+                "status": row["status"],
+                "skill_decisions": decisions,
+                "conversation_message_id": row["conversation_message_id"],
+                "created_at": row["created_at"],
+                "completed_at": row["completed_at"],
+                "hits": [
+                    {
+                        "material_id": hit["material_id"],
+                        "chunk_id": hit["chunk_id"],
+                        "title": hit["source_title"],
+                        "chunk_index": hit["chunk_index"],
+                        "rank": hit["rank"],
+                        "score": hit["score"],
+                        "matched_modes": json.loads(hit["matched_modes_json"] or "[]"),
+                        "citation_index": hit["citation_index"],
+                    }
+                    for hit in hits
+                ],
+            }
+        )
+    return result
 
 
 def create_conversation(connection, owner_user_id, class_id, title):
@@ -394,7 +662,7 @@ def list_conversation_messages(connection, conversation_id, owner_user_id, class
 
 def create_conversation_turn(
     connection, *, conversation_id, owner_user_id, class_id, question,
-    prompt_version, skill_version,
+    prompt_version, skill_version, skill_snapshot=None,
 ):
     user_cursor = connection.execute(
         """
@@ -408,10 +676,17 @@ def create_conversation_turn(
         """
         INSERT INTO conversation_messages
             (conversation_id, owner_user_id, class_id, role, content, status,
-             prompt_version, skill_version)
-        VALUES (?, ?, ?, 'assistant', '', 'pending', ?, ?)
+             prompt_version, skill_version, skill_snapshot_json)
+        VALUES (?, ?, ?, 'assistant', '', 'pending', ?, ?, ?)
         """,
-        (conversation_id, owner_user_id, class_id, prompt_version, skill_version),
+        (
+            conversation_id,
+            owner_user_id,
+            class_id,
+            prompt_version,
+            skill_version,
+            json.dumps(skill_snapshot or [], ensure_ascii=False, separators=(",", ":")),
+        ),
     )
     connection.execute(
         "UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ? AND owner_user_id = ? AND class_id = ?",

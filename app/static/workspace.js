@@ -36,7 +36,7 @@
   const assistantPromptForm = $(`[data-assistant-prompt-form]`);
   const assistantPrompt = $(`[data-assistant-prompt]`);
   const assistantSettingsStatus = $(`[data-assistant-settings-status]`);
-  const solutionGuidanceToggle = $(`[data-solution-guidance]`);
+  const assistantSkillList = $(`[data-assistant-skill-list]`);
   const tokenStorageKey = "campusclaw-access-token";
   let user = null;
   let activeIndex = 0;
@@ -538,32 +538,54 @@
 
   const loadAssistantSettings = async () => {
     try {
-      const [prompt, skill] = await Promise.all([
+      const [prompt, skillPayload] = await Promise.all([
         fetchJson("/api/assistant/settings"),
-        fetchJson("/api/assistant/skills/solution-guidance"),
+        fetchJson("/api/assistant/skills"),
       ]);
       assistantPrompt.value = prompt.prompt;
-      solutionGuidanceToggle.checked = Boolean(skill.enabled);
+      renderAssistantSkills(skillPayload.skills || []);
       setAssistantSettingsStatus("");
     } catch (error) {
       if (error.message !== "登录已失效") setAssistantSettingsStatus(`设置读取失败：${error.message}`, "error");
     }
   };
 
-  const updateSolutionGuidance = async () => {
-    solutionGuidanceToggle.disabled = true;
+  const renderAssistantSkills = (skills) => {
+    assistantSkillList.replaceChildren();
+    skills.forEach((skill) => {
+      const label = document.createElement("label");
+      label.className = "skill-toggle";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.checked = Boolean(skill.enabled);
+      input.setAttribute("aria-label", `启用${skill.name}`);
+      const description = document.createElement("span");
+      const title = document.createElement("strong");
+      title.textContent = `启用“${skill.name}”`;
+      const summary = document.createElement("small");
+      summary.textContent = `${skill.summary} · v${skill.package_version}`;
+      description.append(title, summary);
+      label.append(input, description);
+      input.addEventListener("change", () => updateAssistantSkill(skill.key, input));
+      assistantSkillList.append(label);
+    });
+  };
+
+  const updateAssistantSkill = async (skillKey, toggle) => {
+    toggle.disabled = true;
     try {
-      const skill = await fetchJson("/api/assistant/skills/solution-guidance", {
+      const skill = await fetchJson(`/api/assistant/skills/${encodeURIComponent(skillKey)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: solutionGuidanceToggle.checked }),
+        body: JSON.stringify({ enabled: toggle.checked }),
       });
-      solutionGuidanceToggle.checked = Boolean(skill.enabled);
-      setAssistantSettingsStatus("解题引导设置已保存。", "success");
+      toggle.checked = Boolean(skill.enabled);
+      setAssistantSettingsStatus(`${skill.name}设置已保存（班级版本 ${skill.version}）。`, "success");
     } catch (error) {
+      toggle.checked = !toggle.checked;
       if (error.message !== "登录已失效") setAssistantSettingsStatus(`保存失败：${error.message}`, "error");
     } finally {
-      solutionGuidanceToggle.disabled = false;
+      toggle.disabled = false;
     }
   };
 
@@ -734,7 +756,6 @@
   newConversationButton.addEventListener("click", createConversation);
   conversationForm.addEventListener("submit", sendConversationMessage);
   assistantPromptForm.addEventListener("submit", saveAssistantPrompt);
-  solutionGuidanceToggle.addEventListener("change", updateSolutionGuidance);
   $(`[data-refresh]`).addEventListener("click", () => loadMaterials());
   $(`[data-logout]`).addEventListener("click", logout);
   uploadDialogButton.addEventListener("click", () => { uploadPanel.hidden = false; uploadPanel.scrollIntoView({ behavior: "smooth", block: "start" }); });

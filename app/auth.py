@@ -162,6 +162,27 @@ def role_required(role):
     return decorator
 
 
+def admin_required(view):
+    """Require a principal granted through trusted local database access."""
+
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        user = current_user()
+        if user is None:
+            return unauthorized_response()
+        if not db.is_admin(db.get_db(), user["id"]):
+            return jsonify({"error": "forbidden"}), 403
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def grant_admin_by_username(connection, username, granted_by="local-cli"):
+    """Compatibility helper for trusted local scripts; never exposed as HTTP."""
+
+    return db.grant_admin(connection, username, granted_by)
+
+
 def _user_payload(user):
     return {
         "user_id": user["id"],

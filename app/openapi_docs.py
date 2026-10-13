@@ -96,6 +96,7 @@ def openapi_document():
             {"name": "Authentication"},
             {"name": "Knowledge"},
             {"name": "Assistant settings"},
+            {"name": "Audit administration"},
             {"name": "Conversations"},
         ],
         "paths": {
@@ -135,7 +136,19 @@ def openapi_document():
                         {"name": "mode", "in": "query", "schema": {"type": "string", "enum": ["keyword", "vector", "hybrid"], "default": "hybrid"}},
                         {"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 20, "default": 10}},
                     ],
-                    "responses": protected_json,
+                    "responses": _responses(
+                        success_schema={
+                            "type": "object",
+                            "properties": {
+                                "query": {"type": "string"},
+                                "mode": {"type": "string"},
+                                "message": {"type": "string"},
+                                "hits": {"type": "array", "items": json_schema},
+                                "audit_id": {"type": "string"},
+                            },
+                            "required": ["query", "mode", "hits", "audit_id"],
+                        }
+                    ),
                 }
             },
             "/api/ask": {
@@ -144,7 +157,34 @@ def openapi_document():
                     "summary": "Single-turn grounded answer (compatibility endpoint)",
                     "security": bearer,
                     "requestBody": _json_request("Question and optional user/assistant history", {"$ref": "#/components/schemas/AskRequest"}, {"question": "一次函数是什么？", "history": []}),
-                    "responses": protected_json,
+                    "responses": {
+                        **_responses(
+                            success_schema={
+                            "type": "object",
+                            "properties": {
+                                "answer": {"type": "string"},
+                                "citations": {"type": "array", "items": json_schema},
+                                "audit_id": {"type": "string"},
+                            },
+                            "required": ["answer", "citations", "audit_id"],
+                            }
+                        ),
+                        "503": {
+                            "description": "Retrieval or answer service unavailable; accepted operations include audit_id",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "error": {"type": "string"},
+                                            "audit_id": {"type": "string"},
+                                        },
+                                        "required": ["error", "audit_id"],
+                                    }
+                                }
+                            },
+                        },
+                    },
                 }
             },
             "/api/assistant/settings": {
@@ -174,6 +214,39 @@ def openapi_document():
                     "summary": "Enable or disable solution-guidance (teacher only)",
                     "security": bearer,
                     "requestBody": _json_request("Only the enabled flag can be changed", {"$ref": "#/components/schemas/SkillUpdate"}, {"enabled": True}),
+                    "responses": protected_json,
+                },
+            },
+            "/api/assistant/skills": {
+                "get": {
+                    "tags": ["Assistant settings"],
+                    "summary": "List registered skills and this class's enablement state (teacher only)",
+                    "security": bearer,
+                    "responses": protected_json,
+                },
+            },
+            "/api/assistant/skills/{skill_key}": {
+                "parameters": [{"name": "skill_key", "in": "path", "required": True, "schema": {"type": "string"}}],
+                "patch": {
+                    "tags": ["Assistant settings"],
+                    "summary": "Enable or disable a registered skill for this class (teacher only)",
+                    "security": bearer,
+                    "requestBody": _json_request("Only the enabled flag can be changed", {"$ref": "#/components/schemas/SkillUpdate"}, {"enabled": True}),
+                    "responses": protected_json,
+                },
+            },
+            "/api/admin/audits": {
+                "get": {
+                    "tags": ["Audit administration"],
+                    "summary": "Query minimized assistant audit records (deployment-granted admin only)",
+                    "security": bearer,
+                    "parameters": [
+                        {"name": name, "in": "query", "schema": {"type": "string"}}
+                        for name in ("audit_id", "class_id", "user_id", "operation", "status", "created_after", "created_before", "skill_key", "material_id", "chunk_id")
+                    ] + [
+                        {"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50}},
+                        {"name": "offset", "in": "query", "schema": {"type": "integer", "minimum": 0, "maximum": 100000, "default": 0}},
+                    ],
                     "responses": protected_json,
                 },
             },
@@ -212,12 +285,12 @@ def openapi_document():
                 "post": {
                     "tags": ["Conversations"],
                     "summary": "Send a question and receive SSE events",
-                    "description": "SSE event order: start, one or more delta events, then done; or error. The done data contains message_id, final answer, and citations. Include Bearer token in Authorization header.",
+                    "description": "SSE event order: start, one or more delta events, then done; or error. Start and done contain audit_id; done contains message_id, final answer, and citations. Include Bearer token in Authorization header.",
                     "security": bearer,
                     "parameters": [{"name": "conversation_id", "in": "path", "required": True, "schema": {"type": "integer"}}],
                     "requestBody": message_request,
                     "responses": {
-                        "200": {"description": "Server-sent events", "content": {"text/event-stream": {"schema": {"type": "string"}, "example": "event: start\\ndata: {\\\"message_id\\\":12}\\n\\nevent: delta\\ndata: {\\\"text\\\":\\\"先看题目条件\\\"}\\n\\nevent: done\\ndata: {\\\"message_id\\\":12,\\\"answer\\\":\\\"...\\\",\\\"citations\\\":[]}\\n\\n"}}},
+                        "200": {"description": "Server-sent events", "content": {"text/event-stream": {"schema": {"type": "string"}, "example": "event: start\\ndata: {\\\"message_id\\\":12,\\\"audit_id\\\":\\\"opaque-id\\\"}\\n\\nevent: delta\\ndata: {\\\"text\\\":\\\"先看题目条件\\\"}\\n\\nevent: done\\ndata: {\\\"message_id\\\":12,\\\"audit_id\\\":\\\"opaque-id\\\",\\\"answer\\\":\\\"...\\\",\\\"citations\\\":[]}\\n\\n"}}},
                         "400": {"description": "Invalid question"},
                         "401": {"description": "Missing, expired, or revoked Bearer token"},
                         "404": {"description": "Conversation is not visible to this user"},

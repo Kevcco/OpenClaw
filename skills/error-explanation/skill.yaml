@@ -1,0 +1,10 @@
+{
+  "key": "error-explanation",
+  "name": "错题讲解",
+  "version": "1.0.0",
+  "summary": "帮助学生定位错因，比较原思路与正确概念并逐步订正。",
+  "applicability": {"any_terms": ["错题", "哪里错", "错因", "订正", "改正", "错误原因", "为什么错"]},
+  "priority": 80,
+  "instruction_file": "instructions.md",
+  "instruction_tokens": 240
+}

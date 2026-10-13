@@ -64,6 +64,7 @@ assert_search() {
   python3 -c 'import json,sys
 payload=json.load(sys.stdin)
 assert payload["mode"] == sys.argv[1]
+assert payload["audit_id"]
 assert payload["hits"], payload
 assert any(sys.argv[2] in hit["source"]["title"] for hit in payload["hits"]), payload
 for hit in payload["hits"]:
@@ -74,6 +75,7 @@ for hit in payload["hits"]:
 if sys.argv[1] == "vector":
     assert all(hit.get("score", 0) >= 0.35 for hit in payload["hits"])
 ' "$mode" "$expected_title" <<<"$response"
+  LAST_SEARCH_AUDIT_ID="$(printf '%s' "$response" | python3 -c 'import json,sys; print(json.load(sys.stdin)["audit_id"])')"
   echo "PASS search $mode: $query"
 }
 
@@ -90,6 +92,10 @@ python3 -c 'import json,sys; assert any("A班" in x["title"] for x in json.load(
 python3 -c 'import json,sys; assert any("B班" in x["title"] for x in json.load(sys.stdin)["materials"])' <<<"$student_b_materials"
 echo "PASS class isolation: A and B lists contain their own seed materials"
 
+teacher_skills="$(curl -fsS -H "$(auth_header teacher_a)" "$BASE_URL/api/assistant/skills")"
+python3 -c 'import json,sys; payload=json.load(sys.stdin); keys={skill["key"] for skill in payload["skills"]}; assert keys == {"solution-guidance","error-explanation","homework-review"}, payload' <<<"$teacher_skills"
+echo "PASS skill registry: all three package-backed skills are available to teachers"
+
 assert_search student_a1 "一次函数" keyword "A班"
 assert_search student_a1 "一次函数" vector "A班"
 assert_search student_a1 "一次函数" hybrid "A班"
@@ -105,14 +111,14 @@ ask_response="$(curl -fsS -H "$(auth_header student_a1)" \
   -H 'Content-Type: application/json' \
   --data '{"question":"一次函数基础"}' \
   "$BASE_URL/api/ask")"
-python3 -c 'import json,sys; payload=json.load(sys.stdin); assert "[1]" in payload["answer"]; assert payload["citations"]; assert payload["citations"][0]["index"] == 1' <<<"$ask_response"
+ask_audit_id="$(printf '%s' "$ask_response" | python3 -c 'import json,sys; p=json.load(sys.stdin); assert p["audit_id"]; assert "[1]" in p["answer"]; assert p["citations"]; assert p["citations"][0]["index"] == 1; print(p["audit_id"])')"
 echo "PASS traceable answer: citation [1] maps to source"
 
 empty_ask="$(curl -fsS -H "$(auth_header student_a1)" \
   -H 'Content-Type: application/json' \
   --data '{"question":"zxqv-no-material-9f2a8c7e"}' \
   "$BASE_URL/api/ask")"
-python3 -c 'import json,sys; payload=json.load(sys.stdin); assert payload["citations"] == []; assert "未找到" in payload["answer"]' <<<"$empty_ask"
+empty_audit_id="$(printf '%s' "$empty_ask" | python3 -c 'import json,sys; p=json.load(sys.stdin); assert p["audit_id"]; assert p["citations"] == []; assert "未找到" in p["answer"]; print(p["audit_id"])')"
 echo "PASS no-evidence answer: empty citations"
 
 title="Compose验收-$(date +%s)"
@@ -184,7 +190,11 @@ python3 -c 'import json,sys; assert any(sys.argv[1] == x["title"] for x in json.
 echo "PASS persistence: uploaded material remains after down/up"
 docker compose exec -T app python -c 'import sqlite3; c=sqlite3.connect("/app/data/app.db"); assert c.execute("select 1 from sqlite_master where type=\"table\" and name=\"auth_tokens\"").fetchone(); assert c.execute("select count(*) from auth_tokens").fetchone()[0] >= 1'
 echo "PASS persistence: auth_tokens table and rows remain after down/up"
+docker compose exec -T app python -c 'import sqlite3,sys; c=sqlite3.connect("/app/data/app.db"); tables={r[0] for r in c.execute("select name from sqlite_master where type=\"table\"")}; assert {"assistant_skill_settings_versions","assistant_audit_operations","assistant_audit_hits"} <= tables; assert all(n == 3 for _,n in c.execute("select class_id,count(*) from assistant_skills group by class_id")); a=c.execute("select status from assistant_audit_operations where audit_id=?",(sys.argv[1],)).fetchone(); assert a and a[0] == "complete"; h=c.execute("select count(*) from assistant_audit_hits where audit_id=? and citation_index=1",(sys.argv[1],)).fetchone()[0]; assert h >= 1; e=c.execute("select status from assistant_audit_operations where audit_id=?",(sys.argv[2],)).fetchone(); assert e and e[0] == "no-evidence"' "$ask_audit_id" "$empty_audit_id"
+echo "PASS persistence: skill registry, audit records, and citation/source linkage survive restart"
 assert_search teacher_a "Compose verification" keyword "Compose验收"
 assert_search teacher_a "Compose verification" hybrid "Compose验收"
+docker compose exec -T app python -c 'import sqlite3,sys; c=sqlite3.connect("/app/data/app.db"); row=c.execute("select operation,status from assistant_audit_operations where audit_id=?",(sys.argv[1],)).fetchone(); assert row == ("search","complete"); assert c.execute("select count(*) from assistant_audit_hits where audit_id=?",(sys.argv[1],)).fetchone()[0] > 0' "$LAST_SEARCH_AUDIT_ID"
+echo "PASS persistence: search audit hit remains queryable after restart"
 
 echo "Compose verification completed successfully."

@@ -21,7 +21,7 @@ class ExtractiveAnswerProvider:
             return "资料中未找到相关内容"
         first = contexts[0]["chunk_text"].strip().replace("\n", " ")
         first = first[:240]
-        if skill_instruction:
+        if skill_instruction and "的完整指令：" in skill_instruction:
             title = contexts[0].get("title") or "本班材料"
             chunk_index = contexts[0].get("chunk_index", "-")
             return (

@@ -65,10 +65,41 @@ def test_schema_reinitialization_preserves_existing_data_and_auth(app, client):
     token_headers = login(client, "student_a1", "student_a1_pass")
     client.get("/api/knowledge/search?q=一次函数", headers=token_headers)
     connection = db.connect(app.config["DATABASE_PATH"])
+    identity = client.get("/api/me", headers=token_headers).json
+    db.update_assistant_prompt(connection, identity["class_id"], "迁移前提示词")
+    db.update_assistant_skill(connection, identity["class_id"], False)
+    conversation = db.create_conversation(connection, identity["user_id"], identity["class_id"], "迁移前会话")
+    _user_message_id, assistant_message_id = db.create_conversation_turn(
+        connection,
+        conversation_id=conversation["id"],
+        owner_user_id=identity["user_id"],
+        class_id=identity["class_id"],
+        question="迁移前问题",
+        prompt_version=2,
+        skill_version=2,
+        skill_snapshot={"class_setting_version": 2, "selected_skills": []},
+    )
+    db.update_conversation_message(
+        connection,
+        assistant_message_id,
+        identity["user_id"],
+        identity["class_id"],
+        content="迁移前回答",
+        status="complete",
+        citations=[],
+    )
+    connection.execute("UPDATE knowledge_chunks SET vector_status = 'ready'")
+    connection.commit()
     before = {
         "materials": connection.execute("SELECT count(*) FROM materials").fetchone()[0],
         "tokens": connection.execute("SELECT count(*) FROM auth_tokens").fetchone()[0],
         "chunks": connection.execute("SELECT count(*) FROM knowledge_chunks").fetchone()[0],
+        "vector_ready": connection.execute("SELECT count(*) FROM knowledge_chunks WHERE vector_status = 'ready'").fetchone()[0],
+        "assistant_prompt": db.get_assistant_config(connection, identity["class_id"])["prompt"],
+        "assistant_enabled": db.get_assistant_skill(connection, identity["class_id"])["enabled"],
+        "conversation_content": connection.execute(
+            "SELECT content FROM conversation_messages WHERE id = ?", (assistant_message_id,)
+        ).fetchone()["content"],
         "tables": {
             row[0]
             for row in connection.execute(
@@ -84,6 +115,12 @@ def test_schema_reinitialization_preserves_existing_data_and_auth(app, client):
         "materials": connection.execute("SELECT count(*) FROM materials").fetchone()[0],
         "tokens": connection.execute("SELECT count(*) FROM auth_tokens").fetchone()[0],
         "chunks": connection.execute("SELECT count(*) FROM knowledge_chunks").fetchone()[0],
+        "vector_ready": connection.execute("SELECT count(*) FROM knowledge_chunks WHERE vector_status = 'ready'").fetchone()[0],
+        "assistant_prompt": db.get_assistant_config(connection, identity["class_id"])["prompt"],
+        "assistant_enabled": db.get_assistant_skill(connection, identity["class_id"])["enabled"],
+        "conversation_content": connection.execute(
+            "SELECT content FROM conversation_messages WHERE id = ?", (assistant_message_id,)
+        ).fetchone()["content"],
         "tables": {
             row[0]
             for row in connection.execute(

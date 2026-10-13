@@ -6,7 +6,8 @@ from flask import Blueprint, Response, abort, current_app, jsonify, request, str
 
 from . import db, retrieval
 from .answer import AnswerProviderError, answer_with_configuration, normalize_citations
-from .auth import current_user, login_required, role_required
+from .auth import admin_required, current_user, login_required, role_required
+from .skill_registry import select_skills
 from .retrieval_routes import hit_json
 
 
@@ -36,6 +37,18 @@ def _skill_json(row):
     }
 
 
+def _registered_skill_json(package, setting):
+    return {
+        "key": package["key"],
+        "name": package["name"],
+        "summary": package["summary"],
+        "package_version": package["version"],
+        "enabled": bool(setting["enabled"]),
+        "version": setting["version"],
+        "updated_at": setting["updated_at"],
+    }
+
+
 def _conversation_json(row):
     return {
         "id": row["id"],
@@ -50,6 +63,10 @@ def _message_json(row):
         citations = json.loads(row["citations_json"] or "[]")
     except (TypeError, json.JSONDecodeError):
         citations = []
+    try:
+        skill_snapshot = json.loads(row["skill_snapshot_json"] or "{}")
+    except (KeyError, TypeError, json.JSONDecodeError):
+        skill_snapshot = {}
     return {
         "id": row["id"],
         "role": row["role"],
@@ -59,6 +76,7 @@ def _message_json(row):
         "created_at": row["created_at"],
         "prompt_version": row["prompt_version"],
         "skill_version": row["skill_version"],
+        "skill_snapshot": skill_snapshot,
     }
 
 
@@ -87,22 +105,89 @@ def assistant_settings():
 @bp.route("/api/assistant/skills/solution-guidance", methods=("GET", "PATCH"))
 @role_required("teacher")
 def solution_guidance_skill():
+    return _skill_setting(SOLUTION_GUIDANCE_KEY, update=request.method == "PATCH")
+
+
+@bp.get("/api/assistant/skills")
+@role_required("teacher")
+def assistant_skills():
+    user = current_user()
+    registry = current_app.extensions.get("skill_registry", {})
+    rows = db.list_assistant_skills(db.get_db(), user["class_id"])
+    settings = {row["skill_key"]: row for row in rows}
+    return jsonify(
+        {
+            "skills": [
+                _registered_skill_json(package, settings[key])
+                for key, package in sorted(registry.items())
+                if key in settings
+            ]
+        }
+    )
+
+
+@bp.patch("/api/assistant/skills/<skill_key>")
+@role_required("teacher")
+def update_assistant_skill(skill_key):
+    return _skill_setting(skill_key, update=True)
+
+
+@bp.get("/api/admin/audits")
+@admin_required
+def admin_audits():
+    integer_filters = ("class_id", "user_id", "material_id", "chunk_id")
+    filters = {}
+    for name in integer_filters:
+        raw = request.args.get(name)
+        if raw is None:
+            continue
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            return jsonify({"error": f"{name} must be an integer"}), 400
+        if value < 1:
+            return jsonify({"error": f"{name} must be positive"}), 400
+        filters[name] = value
+    for name in ("audit_id", "operation", "status", "created_after", "created_before", "skill_key"):
+        value = request.args.get(name)
+        if value:
+            value = value.strip()
+            if len(value) > 200:
+                return jsonify({"error": f"{name} is too long"}), 400
+            filters[name] = value
+    if filters.get("operation") not in {None, "search", "ask", "conversation"}:
+        return jsonify({"error": "operation is invalid"}), 400
+    if filters.get("status") not in {None, "processing", "complete", "no-evidence", "failed", "interrupted"}:
+        return jsonify({"error": "status is invalid"}), 400
+    try:
+        limit = int(request.args.get("limit", "50"))
+        offset = int(request.args.get("offset", "0"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "limit and offset must be integers"}), 400
+    if not 1 <= limit <= 100 or not 0 <= offset <= 100000:
+        return jsonify({"error": "limit must be 1..100 and offset 0..100000"}), 400
+    audits = db.list_audit_operations(db.get_db(), filters, limit=limit, offset=offset)
+    return jsonify({"audits": audits, "limit": limit, "offset": offset})
+
+
+def _skill_setting(skill_key, update=False):
     user = current_user()
     connection = db.get_db()
-    skill = db.get_assistant_skill(connection, user["class_id"], SOLUTION_GUIDANCE_KEY)
-    if skill is None:
-        return jsonify({"error": "solution-guidance skill unavailable"}), 503
-    if request.method == "GET":
-        return jsonify(_skill_json(skill))
+    package = current_app.extensions.get("skill_registry", {}).get(skill_key)
+    skill = db.get_assistant_skill(connection, user["class_id"], skill_key)
+    if skill is None or package is None:
+        return jsonify({"error": "skill unavailable"}), 404
+    if not update:
+        return jsonify(_registered_skill_json(package, skill))
 
     payload = request.get_json(silent=True) or {}
     enabled = payload.get("enabled")
     if not isinstance(enabled, bool):
         return jsonify({"error": "enabled must be a boolean"}), 400
     updated = db.update_assistant_skill(
-        connection, user["class_id"], enabled, SOLUTION_GUIDANCE_KEY
+        connection, user["class_id"], enabled, skill_key
     )
-    return jsonify(_skill_json(updated))
+    return jsonify(_registered_skill_json(package, updated))
 
 
 @bp.route("/api/conversations", methods=("GET", "POST"))
@@ -189,9 +274,17 @@ def stream_conversation_message(conversation_id):
         return jsonify({"error": f"question must be at most {MAX_QUESTION_CHARS} characters"}), 400
 
     assistant_config = db.get_assistant_config(connection, user["class_id"])
-    skill = db.get_assistant_skill(connection, user["class_id"], SOLUTION_GUIDANCE_KEY)
-    if assistant_config is None or skill is None:
+    settings = db.list_assistant_skills(connection, user["class_id"])
+    if assistant_config is None:
         return jsonify({"error": "assistant settings unavailable"}), 503
+    skill_selection = select_skills(
+        current_app.extensions.get("skill_registry", {}),
+        settings,
+        question,
+        current_app.config["SKILL_INSTRUCTION_TOKEN_BUDGET"],
+        settings_version=db.get_assistant_skill_settings_version(connection, user["class_id"]),
+    )
+    skill_version = skill_selection["setting_version"]
 
     prior_rows = db.list_conversation_messages(
         connection, conversation_id, user["id"], user["class_id"]
@@ -208,7 +301,8 @@ def stream_conversation_message(conversation_id):
         class_id=user["class_id"],
         question=question,
         prompt_version=assistant_config["prompt_version"],
-        skill_version=skill["version"],
+        skill_version=skill_version,
+        skill_snapshot=skill_selection["snapshot"],
     )
     db.update_conversation_message(
         connection,
@@ -218,11 +312,19 @@ def stream_conversation_message(conversation_id):
         content="",
         status="streaming",
     )
+    audit_id = db.create_audit_operation(
+        connection,
+        user_id=user["id"],
+        class_id=user["class_id"],
+        operation="conversation",
+        skill_decisions=skill_selection["decisions"],
+        conversation_message_id=assistant_message_id,
+    )
 
     def generate():
         stream_connection = db.connect(current_app.config["DATABASE_PATH"])
         try:
-            yield _sse("start", {"message_id": assistant_message_id})
+            yield _sse("start", {"message_id": assistant_message_id, "audit_id": audit_id})
             result = retrieval.search(
                 stream_connection,
                 user["class_id"],
@@ -233,6 +335,7 @@ def stream_conversation_message(conversation_id):
                 vector_store=current_app.extensions.get("knowledge_vector_store"),
             )
             hits = result["hits"][:4]
+            db.record_audit_hits(stream_connection, audit_id, hits)
             if not hits:
                 final_answer = retrieval.NOT_FOUND_MESSAGE
                 citations = []
@@ -245,10 +348,11 @@ def stream_conversation_message(conversation_id):
                     status="complete",
                     citations=citations,
                 )
+                db.finish_audit_operation(stream_connection, audit_id, "no-evidence")
                 yield _sse("delta", {"text": final_answer})
                 yield _sse(
                     "done",
-                    {"message_id": assistant_message_id, "answer": final_answer, "citations": citations},
+                    {"message_id": assistant_message_id, "answer": final_answer, "citations": citations, "audit_id": audit_id},
                 )
                 return
 
@@ -259,14 +363,13 @@ def stream_conversation_message(conversation_id):
             provider = current_app.extensions.get("answer_provider")
             if provider is None:
                 raise AnswerProviderError("answer service unavailable")
-            skill_instruction = skill["instruction"] if skill["enabled"] else None
             answer_text = answer_with_configuration(
                 provider,
                 question,
                 contexts,
                 history,
                 system_prompt=assistant_config["prompt"],
-                skill_instruction=skill_instruction,
+                skill_instruction=skill_selection["instruction"],
             )
             if isinstance(answer_text, dict):
                 answer_text = answer_text.get("answer", "")
@@ -289,28 +392,36 @@ def stream_conversation_message(conversation_id):
                 status="complete",
                 citations=citations,
             )
+            citation_indexes = {
+                hits[reference - 1][0]["id"]: reference for reference in references
+            }
+            db.record_audit_hits(stream_connection, audit_id, hits, citation_indexes)
+            db.finish_audit_operation(stream_connection, audit_id, "complete")
             for offset in range(0, len(answer_text), 40):
                 yield _sse("delta", {"text": answer_text[offset : offset + 40]})
             yield _sse(
                 "done",
-                {"message_id": assistant_message_id, "answer": answer_text, "citations": citations},
+                {"message_id": assistant_message_id, "answer": answer_text, "citations": citations, "audit_id": audit_id},
             )
         except GeneratorExit:
             _mark_failed(stream_connection, assistant_message_id, user, "回答流已中断")
+            db.finish_audit_operation(stream_connection, audit_id, "interrupted")
             raise
         except (retrieval.RetrievalUnavailable, AnswerProviderError, OSError, RuntimeError, ValueError) as error:
             _mark_failed(stream_connection, assistant_message_id, user, "回答暂不可用，请稍后重试。")
+            db.finish_audit_operation(stream_connection, audit_id, "failed")
             current_app.logger.warning("Assistant stream failed: %s", type(error).__name__)
             yield _sse(
                 "error",
-                {"message_id": assistant_message_id, "error": "回答暂不可用，请稍后重试。"},
+                {"message_id": assistant_message_id, "error": "回答暂不可用，请稍后重试。", "audit_id": audit_id},
             )
         except Exception as error:
             _mark_failed(stream_connection, assistant_message_id, user, "回答暂不可用，请稍后重试。")
+            db.finish_audit_operation(stream_connection, audit_id, "failed")
             current_app.logger.warning("Assistant stream failed: %s", type(error).__name__)
             yield _sse(
                 "error",
-                {"message_id": assistant_message_id, "error": "回答暂不可用，请稍后重试。"},
+                {"message_id": assistant_message_id, "error": "回答暂不可用，请稍后重试。", "audit_id": audit_id},
             )
         finally:
             stream_connection.close()

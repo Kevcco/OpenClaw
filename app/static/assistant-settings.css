@@ -68,6 +68,18 @@
   background: var(--surface);
 }
 
+.assistant-skill-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.assistant-skill-list .skill-toggle {
+  margin: 0;
+  background: var(--surface);
+}
+
 .skill-toggle {
   display: flex;
   align-items: flex-start;
